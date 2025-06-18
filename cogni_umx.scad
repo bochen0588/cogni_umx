@@ -1,13 +1,5 @@
 $fn=16;
 
-//tube_calibration(start=1.0, step=0.025, stop=2, thickness=1.5);
-
-// find these using tube_calibration
-di_07mm = 1.1;
-di_1mm = 1.34;
-tube_thickness = 1.3; // allows 2 ring walls
-eps = 0.01; // small number below printing tolerance
-
 
 module multi_joint(h, azim, elev, d, through, wall, rounded=false) {
     // Creates a joint to connection multiple carbon fiber rods
@@ -74,31 +66,149 @@ module multi_joint(h, azim, elev, d, through, wall, rounded=false) {
     }
 }
 
-// joint holding carbon fiber wing in rear
-// one connection each side for 0.5mm carbon fiber, angled for dihedral
-// one connection down for fuselage, 1mm
+// find these using tube_calibration
+di_07mm = 1.1;
+di_1mm = 1.34;
+tube_thickness = 1.3; // allows 2 ring walls
+eps = 0.01; // small number below printing tolerance
 
-module rear_wing_top_joint() {
+fuse_z = 50;  // fuselage height
+theta = 6; // dihedral angle, deg (per wing, total is *2)
+lambda = 0.5; // taper ratio
+wing_loading = 3.45; // g/dm^2
+m = 25; // flying mass, g,  with additional mocap payload
+AR = 8; // aspect ratio
+h_joint = 7; // joint length
+wall = 1.3; // wall thickness
+S = m/(wing_loading/1e4);  // wing area, g/dm^2
+rounded_joints = false; // rounded joints
+lg_theta = 45; // landing gear angle
+
+b = sqrt(AR*S); // wing span, mm (projected)
+bp = b/cos(theta); // actual length of wing
+
+c_root = 2*S/(b*(1 + lambda)); // chord at root, mm
+c_tip = lambda*c_root; // chord at tip, mm
+
+echo("wing area", S*1e-4, "dm^2");
+echo("wing span", b, "mm");
+echo("chord root", c_root, "mm");
+echo("chord tip", c_tip, "mm");
+
+alpha = atan2(c_root - c_tip, b);
+
+module wing_top_rear_joint() {
     multi_joint(
-        h=[10, 10, 10],
-        azim=[90, -90, 0],
-        elev=[15, 15, -90],
-        d=[di_07mm, di_07mm, di_1mm],
-        through=[false, false, false],
-        wall=[1.3, 1.3, 1.3],
-        rounded=false);
+        h=[h_joint, h_joint, h_joint, h_joint],
+        azim=[90 - alpha, -90 + alpha, 0, 0],
+        elev=[theta, theta, -90, 0],
+        d=[di_07mm, di_07mm, di_1mm, di_1mm],
+        through=[false, false, false, false],
+        wall=[wall, wall, wall, wall],
+        rounded=rounded_joints);
 }
 
-rear_wing_joint();
-
-
-module rear_wing_joint() {
+module wing_top_front_joint() {
     multi_joint(
-        h=[10, 10, 10],
-        azim=[90, -90, 0],
-        elev=[15, 15, -90],
-        d=[di_07mm, di_07mm, di_1mm],
-        through=[false, false, false],
-        wall=[1.3, 1.3, 1.3],
-        rounded=false);
+        h=[h_joint, h_joint, h_joint, h_joint],
+        azim=[90, -90, 0, 0],
+        elev=[theta, theta, -90, 0],
+        d=[di_07mm, di_07mm, di_1mm, di_1mm],
+        through=[false, false, false, false],
+        wall=[wall, wall, wall, wall],
+        rounded=rounded_joints);
 }
+
+module wing_bottom_front_joint() {
+    multi_joint(
+        h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
+        azim=[90, -90, 0, 0, 90, -90],
+        elev=[theta, theta, 90, 0, -lg_theta, -lg_theta],
+        d=[di_07mm, di_07mm, di_1mm, [1.5, 1.5], di_1mm, di_1mm],
+        through=[false, false, false, true, false, false],
+        wall=[wall, wall, wall, wall, wall, wall, wall, wall],
+        rounded=rounded_joints);
+}
+
+module cf_rod(rod) {
+    rotate([0, 90, 0]) color("black") cylinder(h=rod[0], d=rod[1]);
+}
+
+module cf_square_rod(rod) {
+    translate([-rod[0]/2, 0, 0]) rotate([0, 90, 0]) color("black")
+    cube([rod[1][0], rod[1][1], rod[0]], center=true);
+}
+
+module steel_rod(rod) {
+    rotate([0, 90, 0]) color("grey") cylinder(h=rod[0], d=rod[1]);
+}
+
+module wheel(d, spokes=8, thick=1, d_axle_cut=di_1mm) {
+    rotate([90, 0, 0]) union() {
+        rotate_extrude(convexity = 20, $fn=100)
+            translate([d/2, 0, 0])
+                square(size = thick, center=true);
+        rotate([0, -90, 0]) translate([wall, 0, 0]) multi_joint(
+            h=[h_joint],
+            azim=[0],
+            elev=[0],
+            d=[d_axle_cut],
+            through=[true],
+            wall=[wall],
+            rounded=true);
+        difference() {
+            for (i = [0:spokes]) {
+                rotate([360*i/spokes, 90, 0]) translate([0, 0, d/4]) cube([thick, thick, d/2], center=true);
+            }
+            cylinder(h=h_joint, d=d_axle_cut, center=true);
+        }
+    }
+}
+
+module assembly() {
+
+    translate([0, 0, 0]) rotate([0, 0, 180]) wing_top_front_joint();
+    translate([-c_root, 0, 0]) rotate([0, 0, 0]) wing_top_rear_joint();
+    rotate([0, 0, 180]) translate([0, 0, -fuse_z]) wing_bottom_front_joint();
+
+    cf_rods = [
+        // length, diameter (mm)
+        [c_root, 1],
+        [bp/(4*cos(alpha)), 1],
+        [bp/(4*cos(alpha)), 1],
+        [bp/4, 1],
+        [bp/4, 1],
+        [fuse_z, 1],
+        [fuse_z, 1],
+    ];
+
+    steel_rods = [
+        // length, diameter (mm)
+        [70, 1],
+        [70, 1],
+    ];
+
+    cf_square_rod = [
+        // length, [width, height]
+        [300, [1.5, 1.5]],
+    ];
+
+
+    translate([-c_root, 0, 0]) cf_rod(cf_rods[0]);
+    translate([-c_root, 0, 0]) rotate([0, -theta, 90-alpha]) cf_rod(cf_rods[1]);
+    translate([-c_root, 0, 0]) rotate([0, -theta, -90+alpha]) cf_rod(cf_rods[2]);
+    translate([0, 0, 0]) rotate([0, -theta, 90]) cf_rod(cf_rods[3]);
+    translate([0, 0, 0]) rotate([0, -theta, -90]) cf_rod(cf_rods[4]);
+    translate([-c_root, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[5]);
+    translate([0, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[6]);
+
+    translate([0,  0, -fuse_z]) rotate([0, lg_theta, 90])  steel_rod(steel_rods[0]);
+    translate([0,  0, -fuse_z]) rotate([0, lg_theta, -90])  steel_rod(steel_rods[1]);
+
+    translate([30, 0, -fuse_z]) cf_square_rod(cf_square_rod[0]);
+
+    translate([0, 50, -fuse_z-50]) rotate([0, 0, 180]) wheel(d=40);
+    translate([0, -50, -fuse_z-50]) wheel(d=40);
+}
+
+translate([0, 0, 120]) rotate([0, 0, 0]) assembly();
