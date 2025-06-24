@@ -1,3 +1,8 @@
+VER_MAJOR = 0;
+VER_MINOR = 1;
+title = str("COGNI_UMX v", VER_MAJOR, ".", VER_MINOR);
+echo(title);
+    
 $fn=16;
 
 module multi_joint(h, azim, elev, d, through, wall, rounded=false) {
@@ -75,7 +80,7 @@ theta = 6; // dihedral angle, deg (per wing, total is *2)
 lambda = 0.5; // taper ratio
 wing_loading = 3.45; // g/dm^2
 m = 25; // flying mass, g,  with additional mocap payload
-AR = 5; // aspect ratio
+AR = 4.52; // aspect ratio, fune tuning to make longest arm be 300 mm
 h_joint = 7; // joint length
 wall = 1; // wall thickness
 S = m/(wing_loading/1e4);  // wing area, g/dm^2
@@ -83,7 +88,10 @@ rounded_joints = true; // rounded joints
 lg_theta = 45; // landing gear angle
 deck_angle = 12; // tail dragger deck angle
 
-down_angle = 17;
+down_angle = 17.7; // TODO: auto calculate
+down_angle_rear = 12.2; // TODO: auto calculate
+
+aoi = 5; // angle of incidence with thrust axis
 
 b = sqrt(AR*S); // wing span, mm (projected)
 bp = b/cos(theta); // actual length of wing
@@ -101,7 +109,7 @@ echo("chord tip", c_tip, "mm");
 
 alpha = atan2(c_root - c_tip, b/2);
 
-module wing_top_front_joint() {
+module joint_wing_top_front() {
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint],
         azim=[90, -90, 0, 0],
@@ -112,7 +120,7 @@ module wing_top_front_joint() {
         rounded=rounded_joints);
 }
 
-module wing_top_rear_joint() {
+module joint_wing_top_rear() {
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint],
         azim=[90 - alpha, -90 + alpha, 0, 0],
@@ -123,29 +131,29 @@ module wing_top_rear_joint() {
         rounded=rounded_joints);
 }
 
-module wing_bottom_front_joint() {
+module joint_wing_bottom_front() {
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
         azim=[90, -90, 0, 0, 90, -90],
-        elev=[25, 25, 90, 0, -lg_theta, -lg_theta],
+        elev=[25, 25, 90, aoi, -lg_theta, -lg_theta],
         d=[di_07mm, di_07mm, di_1mm, [1.5, 1.5], di_1mm, di_1mm],
         through=[false, false, false, true, false, false],
         wall=[wall, wall, wall, wall, wall, wall, wall, wall],
         rounded=rounded_joints);
 }
 
-module wing_bottom_rear_joint() {
+module joint_wing_bottom_rear() {
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint],
         azim=[90 - alpha, -90 + alpha, 0, 0],
-        elev=[25, 25, 90, 0],
+        elev=[19, 19, 90, -aoi],
         d=[di_07mm, di_07mm, di_1mm, [1.5, 1.5]],
         through=[false, false, false, true],
         wall=[wall, wall, wall, wall, wall, wall],
         rounded=rounded_joints);
 }
 
-module wing_top_front_right() {
+module joint_wing_top_front_right() {
     multi_joint(
         h=[h_joint, h_joint, h_joint],
         azim=[90, 90, 180],
@@ -156,11 +164,11 @@ module wing_top_front_right() {
         rounded=rounded_joints);
 }
 
-module wing_top_front_left() {
-    mirror([0, 1, 0]) wing_top_front_right();
+module joint_wing_top_front_left() {
+    mirror([0, 1, 0]) joint_wing_top_front_right();
 }
 
-module wing_top_rear_right() {
+module joint_wing_top_rear_right() {
     multi_joint(
         h=[h_joint, h_joint, h_joint],
         azim=[90+alpha, 90+alpha, 0],
@@ -171,11 +179,11 @@ module wing_top_rear_right() {
         rounded=rounded_joints);
 }
 
-module wing_top_rear_left() {
-    mirror([0, 1, 0]) wing_top_rear_right();
+module joint_wing_top_rear_left() {
+    mirror([0, 1, 0]) joint_wing_top_rear_right();
 }
 
-module wing_top_front_right_tip() {
+module joint_wing_top_front_right_tip() {
     multi_joint(
         h=[h_joint, h_joint],
         azim=[90, 180],
@@ -186,11 +194,11 @@ module wing_top_front_right_tip() {
         rounded=rounded_joints);
 }
 
-module wing_top_front_left_tip() {
-    mirror([0, 1, 0]) wing_top_front_right_tip();
+module joint_wing_top_front_left_tip() {
+    mirror([0, 1, 0]) joint_wing_top_front_right_tip();
 }
 
-module wing_top_rear_right_tip() {
+module joint_wing_top_rear_right_tip() {
     multi_joint(
         h=[h_joint, h_joint],
         azim=[0, 90 + alpha],
@@ -201,8 +209,8 @@ module wing_top_rear_right_tip() {
         rounded=rounded_joints);
 }
 
-module wing_top_rear_left_tip() {
-    mirror([0, 1, 0]) wing_top_rear_right_tip();
+module joint_wing_top_rear_left_tip() {
+    mirror([0, 1, 0]) joint_wing_top_rear_right_tip();
 }
 
 module cf_rod(rod) {
@@ -246,8 +254,8 @@ module rib_center() {
     //}
     //right();
     //translate([0, -eps, 0]) mirror([0, 1, 0]) right();
-    translate([0, 0, 0]) rotate([0, 0, 180]) wing_top_front_joint();
-    translate([-c_root, 0, 0]) rotate([0, 0, 0]) wing_top_rear_joint();
+    translate([0, 0, 0]) rotate([0, 0, 180]) joint_wing_top_front();
+    translate([-c_root, 0, 0]) rotate([0, 0, 0]) joint_wing_top_rear();
 }
 
 module rib_left_half() {
@@ -284,84 +292,80 @@ module airfoil_elliptical(chord, span, lambda, width, thickness) {
     }
 }
 
+cf_rods = [
+    // length, diameter (mm)
+    [c_root, 1], // 0
+    [bp/(2*cos(alpha)), 1], // 1
+    [bp/(2*cos(alpha)), 1], // 2
+    [bp/2, 1], // 3
+    [bp/2, 1], // 4
+    [fuse_z- c_root*tan(aoi), 1], // 5
+    [fuse_z, 1], // 6
+    [160, 1], // 7
+    [160, 1], // 8
+    [c_root*(1 - lambda*0.5), 1], //9
+    [c_root*(1 - lambda*0.5), 1], //10
+    [c_tip, 1], //11
+    [c_tip, 1], //12
+];
+
+steel_rods = [
+    // length, diameter (mm)
+    [70, 1],
+    [70, 1],
+];
+
+cf_square_rods = [
+    // length, [width, height]
+    [300, [1.5, 1.5]],
+];
+
 module assembly() {
-    rotate([0, 0, 180]) translate([0, 0, -fuse_z]) wing_bottom_front_joint();
-    translate([-c_root, 0, -fuse_z]) wing_bottom_rear_joint();
+    rotate([0, 0, 180]) translate([0, 0, -fuse_z]) joint_wing_bottom_front();
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) joint_wing_bottom_rear();
     
-    rotate([theta, 0, 0]) translate([0, b/4, 0]) wing_top_front_left();
-    rotate([-theta, 0, 0]) translate([0, -b/4, 0]) wing_top_front_right();
+    rotate([theta, 0, 0]) translate([0, b/4, 0]) joint_wing_top_front_left();
+    rotate([-theta, 0, 0]) translate([0, -b/4, 0]) joint_wing_top_front_right();
 
-    rotate([theta, 0, 0]) translate([0, b/2, 0]) wing_top_front_left_tip();
-    rotate([-theta, 0, 0]) translate([0, -b/2, 0]) wing_top_front_right_tip();
+    rotate([theta, 0, 0]) translate([0, b/2, 0]) joint_wing_top_front_left_tip();
+    rotate([-theta, 0, 0]) translate([0, -b/2, 0]) joint_wing_top_front_right_tip();
     
-    rotate([theta, 0, 0]) translate([-c_root*(1 - lambda*0.5), b/4, 0]) wing_top_rear_left();
-    rotate([-theta, 0, 0]) translate([-c_root*(1 - lambda*0.5), -b/4, 0]) wing_top_rear_right();
+    rotate([theta, 0, 0]) translate([-c_root*(1 - lambda*0.5), b/4, 0]) joint_wing_top_rear_left();
+    rotate([-theta, 0, 0]) translate([-c_root*(1 - lambda*0.5), -b/4, 0]) joint_wing_top_rear_right();
     
-    rotate([theta, 0, 0]) translate([-c_tip, b/2, 0]) wing_top_rear_left_tip();
-    rotate([-theta, 0, 0]) translate([-c_tip, -b/2, 0]) wing_top_rear_right_tip();
+    rotate([theta, 0, 0]) translate([-c_tip, b/2, 0]) joint_wing_top_rear_left_tip();
+    rotate([-theta, 0, 0]) translate([-c_tip, -b/2, 0]) joint_wing_top_rear_right_tip();
 
-    cf_rods = [
-        // length, diameter (mm)
-        [c_root, 1],
-        [bp/(2*cos(alpha)), 1],
-        [bp/(2*cos(alpha)), 1],
-        [bp/2, 1],
-        [bp/2, 1],
-        [fuse_z, 1],
-        [fuse_z, 1],
-        [170, 1],
-        [170, 1],
-        [c_root/2, 1],
-        [c_root/2, 1],
-        [c_root*(1 - lambda*0.5), 1],
-        [c_root*(1 - lambda*0.5), 1],
-        [c_tip, 1],
-        [c_tip, 1],
-    ];
-
-    steel_rods = [
-        // length, diameter (mm)
-        [70, 1],
-        [70, 1],
-    ];
-
-    cf_square_rod = [
-        // length, [width, height]
-        [300, [1.5, 1.5]],
-    ];
 
     translate([-c_root, 0, 0]) cf_rod(cf_rods[0]);
     translate([-c_root, 0, 0]) rotate([0, -theta + 0.18, 90-alpha]) cf_rod(cf_rods[1]);
     translate([-c_root, 0, 0]) rotate([0, -theta + 0.18, -90+alpha]) cf_rod(cf_rods[2]);
     translate([0, 0, 0]) rotate([0, -theta, 90]) cf_rod(cf_rods[3]);
     translate([0, 0, 0]) rotate([0, -theta, -90]) cf_rod(cf_rods[4]);
-    translate([-c_root, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[5]);
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -90, 0]) cf_rod(cf_rods[5]);
     translate([0, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[6]);
 
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, 90])  steel_rod(steel_rods[0]);
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, -90])  steel_rod(steel_rods[1]);
 
-    translate([20, 0, -fuse_z]) cf_square_rod(cf_square_rod[0]);
+    rotate([0, aoi, 0]) translate([20, 0, -fuse_z]) cf_square_rod(cf_square_rods[0]);
 
     translate([0, 50, -fuse_z-50]) rotate([0, 0, 180]) wheel(d=40);
     translate([0, -50, -fuse_z-50]) wheel(d=40);
-    
+  
     translate([-tail_arm, 0, -fuse_z]) wheel(d=30);
 
     translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, 90]) cf_rod(cf_rods[7]);
     translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, -90]) cf_rod(cf_rods[8]);
 
-    translate([-c_root, 0, -fuse_z]) rotate([0, -theta -down_angle, 90-alpha]) cf_rod(cf_rods[7]);
-    translate([-c_root, 0, -fuse_z]) rotate([0, -theta -down_angle, -90+alpha]) cf_rod(cf_rods[8]);
-    
-    translate([-c_root, 0, -fuse_z]) cf_rod(cf_rods[9]);
-    translate([-c_root, 0, -fuse_z]) cf_rod(cf_rods[10]);
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, 90-alpha]) cf_rod(cf_rods[7]);
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, -90+alpha]) cf_rod(cf_rods[8]);
  
-    rotate([theta, 0, 180]) translate([0, b/4, 0]) cf_rod(cf_rods[11]);
-    rotate([-theta, 0, 180]) translate([0, -b/4, 0]) cf_rod(cf_rods[12]);
+    rotate([theta, 0, 180]) translate([0, b/4, 0]) cf_rod(cf_rods[9]);
+    rotate([-theta, 0, 180]) translate([0, -b/4, 0]) cf_rod(cf_rods[10]);
     
-    rotate([theta, 0, 180]) translate([0, b/2, 0]) cf_rod(cf_rods[13]);
-    rotate([-theta, 0, 180]) translate([0, -b/2, 0]) cf_rod(cf_rods[14]);
+    rotate([theta, 0, 180]) translate([0, b/2, 0]) cf_rod(cf_rods[11]);
+    rotate([-theta, 0, 180]) translate([0, -b/2, 0]) cf_rod(cf_rods[12]);
     
     rib_center();
     //rib_left_half();
@@ -373,14 +377,74 @@ module assembly() {
 
 //echo(bp/2wd);
 
-module printing_1() {
-    wing_top_front_joint();
-    //translate([10, 10, 0]) rotate([0, 90, 0]) wing_bottom_front_joint();
-    //translate([-10, -10, 0]) rotate([0, 90, 0]) wing_top_rear_joint();
+module joint_printing() {
+    s = 15; // spacing
+    h = h_joint;
+    translate([0*s, 0, h]) rotate([0, 0, 0])joint_wing_top_front();
+    translate([1*s, 0, h]) rotate([0, 90, 45]) joint_wing_top_rear();
+    translate([2*s, 0, h]) rotate([90, 0, 0]) joint_wing_top_front_left();
+    translate([3*s, 0, h]) rotate([-90, 0, 0]) joint_wing_top_front_right();
+    translate([4*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_left_tip();
+    translate([5*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_right_tip();  
+    translate([0*s, s, h]) rotate([90, 0, 0]) joint_wing_top_rear_left();
+    translate([1*s, s, h]) rotate([-90, 0, 0]) joint_wing_top_rear_right();
+    translate([2*s, s, h]) rotate([0, 90, 0]) joint_wing_top_rear_left_tip();
+    translate([3*s, s, h]) rotate([0, 90, 0]) joint_wing_top_rear_right_tip(); 
+    translate([4*s, s, h]) rotate([0, 90, 0]) joint_wing_bottom_front();
+    translate([5*s, s, h]) rotate([0, 90, 0]) joint_wing_bottom_rear();
+
+}
+
+module rod_template() {
+    // this module creates a printable rod template and also echos rod lengths
+    n_cf = len(cf_rods);
+    n_cf_sq = len(cf_square_rods);
+    n_steel = len(steel_rods);
+    n = n_cf + n_cf_sq + n_steel;
+    thick = 3;
+    space = 10;
+    difference() {
+        linear_extrude(thick) square([305, (n+1)*space]);
+        translate([180, -eps, -thick]) linear_extrude(3*thick) square([150, 110]);
+        translate([150, -80, -thick]) linear_extrude(3*thick) rotate([0, 0, 45]) square([155, 113]);
+        translate([5, n*space + 3, thick + eps - 1])
+                linear_extrude(1) text(title, size=5);
+        for (i = [0:n_steel-1]) {
+            rod = steel_rods[i];
+            translate([-eps, space*(i) + 10, thick + eps -rod[1]])
+                linear_extrude(rod[1]) square([rod[0], rod[1]]);
+            label = str("steel", i, " l:", round(rod[0]), " r:", rod[1]);
+            echo(label);
+            translate([5, space*(i) + 3, thick + eps - 1])
+                linear_extrude(1) text(label, size=5);
+        }
+        cf_rods_odered = [5, 6, 11, 12, 9, 10, 7, 8, 0, 3, 4, 1, 2];
+        for (i = [0:n_cf-1]) {
+            j = cf_rods_odered[i];
+            rod = cf_rods[j];
+            translate([-eps, space*(i + n_steel) + 10, thick + eps -rod[1]])
+                linear_extrude(rod[1]) square([rod[0], rod[1]]);
+            label = str("cf", j, " l:", round(rod[0]), " r:", rod[1]);
+            echo(label);
+            translate([5, space*(i + n_steel) + 3, thick + eps - 1]) linear_extrude(1) text(label, size=5);
+        }
+        for (i = [0:n_cf_sq-1]) {
+            rod = cf_square_rods[i];
+            translate([-eps, space*(i + n_steel + n_cf) + 10, thick + eps -rod[1][1]])
+                linear_extrude(rod[1][1]) square([rod[0], rod[1][0]]);
+            label = str("cf_sq", i, " l:", round(rod[0]), " d:", rod[1]);
+            echo(label);
+            translate([5, space*(i + n_steel + n_cf) + 3, thick + eps - 1])
+                linear_extrude(1) text(label, size=5);
+        }
+
+    }
 }
 
 //rib_center();
 
-//printing_1();
+//joint_printing();
 
-translate([0, 0, 120]) rotate([0, 0, 0]) assembly();
+//rod_template();
+
+translate([0, 0, 120]) rotate([0, -aoi, 0]) assembly();
