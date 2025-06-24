@@ -473,8 +473,8 @@ module rod_template() {
 
 //rib_center();
 
-joint_printing();
+//joint_printing();
 
 //rod_template();
 
-//translate([0, 0, 120]) rotate([0, -aoi, 0]) assembly();
+translate([0, 0, 120]) rotate([0, -aoi, 0]) assembly();
