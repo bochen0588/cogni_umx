@@ -1,9 +1,13 @@
+
+//--------------------------------
+// PARAMETERS
+//--------------------------------
+$fn=16;
+do_echo = false;
+
 VER_MAJOR = 0;
 VER_MINOR = 1;
-title = str("COGNI_UMX v", VER_MAJOR, ".", VER_MINOR);
-echo(title);
 
-// PARAMETERS
 di_08mm = 1.1;
 eps = 0.01; // small number below printing tolerance
 
@@ -26,8 +30,31 @@ down_angle = 18.5;
 down_angle_rear = 12.4;
 theta_rear_fix = 0.18;
 
-    
-$fn=16;
+//--------------------------------
+// CALCULATED VALUES
+//--------------------------------
+
+S = m/(wing_loading/1e4);  // wing area, g/dm^2
+b = sqrt(AR*S); // wing span, mm (projected)
+bp = b/cos(theta); // actual length of wing
+
+c_root = 2*S/(b*(1 + lambda)); // chord at root, mm
+c_tip = lambda*c_root; // chord at tip, mm
+mac = (c_root + c_tip)/2;
+title = str("COGNI_UMX v", VER_MAJOR, ".", VER_MINOR);
+alpha = atan2(c_root - c_tip, b/2);
+
+if (do_echo) {
+    echo(title);
+    echo("wing area", S*1e-4, "dm^2");
+    echo("wing span", b, "mm");
+    echo("chord root", c_root, "mm");
+    echo("chord tip", c_tip, "mm");
+}
+
+//--------------------------------
+// MODULES
+//--------------------------------
 
 module multi_joint(h, azim, elev, d, through, wall, rounded=false) {
     // Creates a joint to connection multiple carbon fiber rods
@@ -93,23 +120,6 @@ module multi_joint(h, azim, elev, d, through, wall, rounded=false) {
         }
     }
 }
-
-
-S = m/(wing_loading/1e4);  // wing area, g/dm^2
-b = sqrt(AR*S); // wing span, mm (projected)
-bp = b/cos(theta); // actual length of wing
-
-c_root = 2*S/(b*(1 + lambda)); // chord at root, mm
-c_tip = lambda*c_root; // chord at tip, mm
-mac = (c_root + c_tip)/2;
-
-
-echo("wing area", S*1e-4, "dm^2");
-echo("wing span", b, "mm");
-echo("chord root", c_root, "mm");
-echo("chord tip", c_tip, "mm");
-
-alpha = atan2(c_root - c_tip, b/2);
 
 module joint_wing_top_front() {
     multi_joint(
@@ -318,6 +328,10 @@ module airfoil_elliptical(chord, span, lambda, width, thickness) {
     }
 }
 
+//--------------------------------
+// RODS
+//--------------------------------
+
 cf_rods = [
     // length, diameter (mm)
     [c_root, 0.8], // 0
@@ -403,28 +417,6 @@ module assembly() {
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
 
-
-//echo(bp/2wd);
-
-module joint_printing() {
-    s = 15; // spacing
-    h = h_joint;
-    translate([0*s, 0, h]) rotate([0, 0, 0])joint_wing_top_front();
-    translate([1*s, 0, h]) rotate([0, 90, 45]) joint_wing_top_rear();
-    translate([2*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_left();
-    translate([3*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_right();
-    translate([4*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_left_tip();
-    translate([5*s, 0, h]) rotate([0, -90, 0]) joint_wing_top_front_right_tip();  
-    translate([0*s, s, h]) rotate([0, 90, 90]) joint_wing_top_rear_left();
-    translate([1*s, s, h]) rotate([0, 90, 0]) joint_wing_top_rear_right();
-    translate([2*s, s, h]) rotate([0, 90, 0]) joint_wing_top_rear_left_tip();
-    translate([3*s, s, h]) rotate([0, 90, 0]) joint_wing_top_rear_right_tip(); 
-    translate([4*s, s, h]) rotate([180, 0, 0]) joint_wing_bottom_front();
-    translate([5*s, s, h]) rotate([180, 0, 0]) joint_wing_bottom_rear();
-    translate([0*s, 2*s, h]) rotate([0, 90, 0]) joint_gear_elevator();
-
-}
-
 module rod_template() {
     // this module creates a printable rod template and also echos rod lengths
     n_cf = len(cf_rods);
@@ -471,10 +463,40 @@ module rod_template() {
     }
 }
 
-//rib_center();
-
-//joint_printing();
-
-//rod_template();
-
-translate([0, 0, 120]) rotate([0, -aoi, 0]) assembly();
+//--------------------------------
+// PART OUTPUT
+//--------------------------------
+part = "assembly"; // default to assembly
+if (part == "joint_wing_top_front") {
+    joint_wing_top_front();
+} else if (part == "joint_wing_top_rear") {
+    joint_wing_top_rear();
+} else if (part == "joint_wing_top_front_left") {
+    joint_wing_top_front_left();
+} else if (part == "joint_wing_top_front_right") {
+    joint_wing_top_front_right();
+} else if (part == "joint_wing_top_front_left_tip") {
+    joint_wing_top_front_left_tip();
+} else if (part == "joint_wing_top_front_right_tip") {
+    joint_wing_top_front_right_tip();
+} else if (part == "joint_wing_top_rear_left") {
+    joint_wing_top_rear_left();
+} else if (part == "joint_wing_top_rear_right") {
+    joint_wing_top_rear_right();
+} else if (part == "joint_wing_top_rear_left_tip") {
+    joint_wing_top_rear_left_tip();
+} else if (part == "joint_wing_top_rear_right_tip") {
+    joint_wing_top_rear_right_tip();
+} else if (part == "joint_wing_bottom_front") {
+    joint_wing_bottom_front();
+} else if (part == "joint_wing_bottom_rear") {
+    joint_wing_bottom_rear();
+} else if (part == "joint_gear_elevator") {
+    joint_gear_elevator();
+} else if (part == "rod_template") {
+    rod_template();
+} else if (part == "assembly") {
+    translate([0, 0, 120]) rotate([0, -aoi, 0]) assembly();
+} else {
+    assert(false, str("unkonwn part: ", part));
+}
