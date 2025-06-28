@@ -172,14 +172,22 @@ module joint_wing_top_rear() {
 }
 
 module joint_wing_bottom_front() {
-    multi_joint(
-        h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
-        azim=[90, -90, 0, 0, 90, -90],
-        elev=[25, 25, 90, aoi, -lg_theta, -lg_theta],
-        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], di_08mm, di_08mm],
-        through=[false, false, false, true, false, false],
-        wall=[wall, wall, wall, wall, wall, wall, wall, wall],
-        rounded=rounded_joints);
+    module joint() {
+        multi_joint(
+            h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
+            azim=[90, -90, 0, 0, 90, -90],
+            elev=[25, 25, 90, aoi, -lg_theta, -lg_theta],
+            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], di_08mm, di_08mm],
+            through=[false, false, false, true, false, false],
+            wall=[wall, wall, wall, wall, wall, wall, wall, wall],
+            rounded=rounded_joints);
+    }
+    
+    // cut joint flat
+    difference() {
+        joint();
+        translate([-(5 + di_08mm/2 + wall), 0, 0]) cube([10, 100, 100], center=true);
+    }
 }
 
 module joint_wing_bottom_rear() {
@@ -449,7 +457,7 @@ module joints() {
 }
 
 module assembly() {
-    //rods();
+    rods();
     joints();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
