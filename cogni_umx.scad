@@ -285,11 +285,11 @@ module joint_gear_elevator() {
         rounded=rounded_joints);
     
     translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
-    polygon([[x3 + di_08mm/2,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
+    polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
 
     x1 = -wall - 1.5/2;
     x2 = x1 - di_08mm/2;
-    x3 = x2 - wall - di_08mm;
+    x3 = x2 - 1.5*di_08mm - wall/2;
     delta = (1.5 - di_08mm)/2;
     translate([x2, 0, 0]) multi_joint(
         h=[h_joint/2, h_joint/2],
@@ -299,7 +299,7 @@ module joint_gear_elevator() {
         through=[true],
         wall=[wall+delta, wall+delta],
         rounded=rounded_joints);
-    translate([x3, 0, -delta]) multi_joint(
+    translate([x3, 0, -delta- eps]) multi_joint(
         h=[h_joint],
         azim=[0],
         elev=[90],
@@ -457,7 +457,7 @@ module joints() {
 }
 
 module assembly() {
-    rods();
+    //rods();
     joints();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
