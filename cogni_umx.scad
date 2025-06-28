@@ -457,7 +457,7 @@ module joints() {
 }
 
 module assembly() {
-    //rods();
+    rods();
     joints();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
