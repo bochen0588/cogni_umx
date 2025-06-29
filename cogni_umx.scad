@@ -10,7 +10,7 @@ do_echo = false;
 VER_MAJOR = 0;
 VER_MINOR = 1;
 
-di_08mm = 1.1;
+di_08mm = 1.0;
 eps = 0.01; // small number below printing tolerance
 
 fuse_z = 50;  // fuselage height
@@ -20,8 +20,8 @@ wing_loading = 3.45; // g/dm^2
 m = 25; // flying mass, g,  with additional mocap payload
 AR = 4.52; // aspect ratio, fune tuning to make longest arm be 300 mm
 h_joint = 7; // joint length
-wall = 0.5; // wall thickness
-rounded_joints = false; // rounded joints
+wall = 0.6; // wall thickness
+rounded_joints = true; // rounded joints
 lg_theta = 45; // landing gear angle
 deck_angle = 12; // tail dragger deck angle
 tail_arm = 280;  // tail arm usually 2-3x mac
@@ -183,6 +183,11 @@ module joint_wing_bottom_front() {
             rounded=rounded_joints);
     }
     
+    translate([-(di_08mm/2 + wall), 0]) rotate([0, 90, 0]) difference() {
+        cylinder(h=wall, r=h_joint);
+        translate([0, 0, -1.5]) rotate([0, aoi, 0]) cube([1.5, 1.5, 100], true);
+    }
+    
     // cut joint flat
     difference() {
         joint();
@@ -223,6 +228,9 @@ module joint_wing_top_front_right() {
         through=[false, true, false],
         wall=[wall, wall, wall],
         rounded=rounded_joints);
+    translate([-di_08mm/2+wall, 0,  wall])
+    linear_extrude(wall) polygon([
+        [0, 0], [-h_joint, 0], [-h_joint, wall], [0, h_joint-wall], [wall, h_joint-wall]]);
 }
 
 module joint_wing_top_front_left() {
@@ -238,6 +246,9 @@ module joint_wing_top_rear_right() {
         through=[true, false, false],
         wall=[wall, wall, wall],
         rounded=rounded_joints);
+    translate([-di_08mm/2-wall/2, 0,  wall])
+    linear_extrude(wall) polygon([
+        [0, 0], [h_joint, 0], [h_joint, wall], [wall-1, h_joint-wall], [-1, h_joint-wall]]);
 }
 
 module joint_wing_top_rear_left() {
@@ -253,6 +264,9 @@ module joint_wing_top_front_right_tip() {
         through=[false, false],
         wall=[wall, wall],
         rounded=rounded_joints);
+    translate([-di_08mm/2+wall, 0,  wall])
+    linear_extrude(wall) polygon([
+        [0, 0], [-h_joint, 0], [-h_joint, wall], [0, h_joint-wall], [wall, h_joint-wall]]);
 }
 
 module joint_wing_top_front_left_tip() {
@@ -268,6 +282,9 @@ module joint_wing_top_rear_right_tip() {
         through=[false, false],
         wall=[wall, wall],
         rounded=rounded_joints);
+    translate([-di_08mm/2-wall/2, 0,  wall])
+    linear_extrude(wall) polygon([
+        [0, 0], [h_joint, 0], [h_joint, wall], [wall-1, h_joint-wall], [-1, h_joint-wall]]);
 }
 
 module joint_wing_top_rear_left_tip() {
@@ -307,6 +324,10 @@ module joint_gear_elevator() {
         through=[true],
         wall=[wall, wall],
         rounded=rounded_joints);
+
+    translate([0, 0,  -(di_08mm/2+1.5*wall)])
+    linear_extrude(wall) polygon([
+        [h_joint, wall], [h_joint, -wall], [-(2*wall + di_08mm), -h_joint/2], [-(2*wall + di_08mm), h_joint/2]]);
 }
 
 module cf_rod(rod) {
@@ -457,7 +478,7 @@ module joints() {
 }
 
 module assembly() {
-    rods();
+    //rods();
     joints();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
