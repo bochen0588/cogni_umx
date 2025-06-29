@@ -317,17 +317,17 @@ module joint_gear_elevator() {
         wall=[wall+delta, wall+delta],
         rounded=rounded_joints);
     translate([x3, 0, -delta- eps]) multi_joint(
-        h=[h_joint],
-        azim=[0],
-        elev=[90],
-        d=[di_08mm],
-        through=[true],
+        h=[h_joint, di_08mm/2 + wall+0.05],
+        azim=[0, 0],
+        elev=[90, -90],
+        d=[di_08mm, di_08mm],
+        through=[true, true],
         wall=[wall, wall],
         rounded=rounded_joints);
 
     translate([0, 0,  -(di_08mm/2+1.5*wall)])
     linear_extrude(wall) polygon([
-        [h_joint, wall], [h_joint, -wall], [-(2*wall + di_08mm), -h_joint/2], [-(2*wall + di_08mm), h_joint/2]]);
+        [h_joint, wall], [h_joint, -wall], [-(3.5*wall + di_08mm), -h_joint/2], [-(3.5*wall + di_08mm), h_joint/2]]);
 }
 
 module cf_rod(rod) {
