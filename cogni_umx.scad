@@ -21,7 +21,6 @@ m = 25; // flying mass, g,  with additional mocap payload
 AR = 4.52; // aspect ratio, fune tuning to make longest arm be 300 mm
 h_joint = 7; // joint length
 wall = 0.6; // wall thickness
-rounded_joints = true; // rounded joints
 lg_theta = 45; // landing gear angle
 deck_angle = 12; // tail dragger deck angle
 tail_arm = 280;  // tail arm usually 2-3x mac
@@ -58,7 +57,7 @@ if (do_echo) {
 // MODULES
 //--------------------------------
 
-module multi_joint(h, azim, elev, d, through, wall, rounded=false, projection=false) {
+module multi_joint(h, azim, elev, d, through, wall, rounded, proj_angles, proj_offset, proj_h) {
     // Creates a joint to connection multiple carbon fiber rods
     
     // given lists of equal length (h, azim, elev, d, through, wall)
@@ -67,9 +66,11 @@ module multi_joint(h, azim, elev, d, through, wall, rounded=false, projection=fa
     // elev: elevation angles of each joint
     // d: inner diameter for carbon fiber rods, if given list of 2, cuts a square
     // through: (whether or not hole goes all the way through)
-    
     // wall: wall thickness
     // rounded: whether to use round or square joint, square better for printing
+    // proj_anlges [roll, pitch, yaw] for projection
+    // proj_offset [x, y, z] for projection slab movement
+    // proj_h projection thickness
     
     module solid() {
         for (i = [0:len(h)-1]) {
@@ -79,10 +80,11 @@ module multi_joint(h, azim, elev, d, through, wall, rounded=false, projection=fa
             elevi = elev[i];
             di = is_list(d[i]) ? max(d[i]) : d[i];
             walli = wall[i];
+            roundedi = rounded[i];
             ro = walli + di/2;
             minkowski() {
                 rotate([0, 90 - elevi, azimi]) cylinder(h=hi, r=r);
-                if (rounded) {
+                if (roundedi) {
                     sphere(r=ro);
                 } else {
                     cube(size=2*ro, center=true);
@@ -100,57 +102,56 @@ module multi_joint(h, azim, elev, d, through, wall, rounded=false, projection=fa
             di = is_list(d[i]) ? max(d[i]) : d[i];
             walli = wall[i];
             throughi = through[i];
+            roundedi = rounded[i];
             ro = walli + di/2;
             rotate([0, 90 - elevi, azimi]) union() {
                 if (is_list(d[i])) {
                     if (through[i]) {
-                        translate([0, 0, 0]) cube([d[i][0],  d[i][1], 2*hi], center=true);
+                        translate([0, 0, 0]) cube([d[i][0],  d[i][1], 10*hi], center=true);
                     } else {
-                        translate([0, 0, hi/2]) cube([d[i][0],  d[i][1], hi], center=true);
+                        translate([0, 0, 5*hi]) cube([d[i][0],  d[i][1], 10*hi], center=true);
                     }
                 } else {
                     if (through[i]) {
-                        translate([0, 0, -hi]) cylinder(h=2*hi, d=di); // cut tube for rod
+                        translate([0, 0, -5*hi]) cylinder(h=10*hi, d=di); // cut tube for rod
                     } else {
-                        cylinder(h=hi, d=di); // cut tube for rod
+                        cylinder(h=10*hi, d=di); // cut tube for rod
                     }
                 }
                 // cut off end
-                translate([0, 0, hi + ro])
-                cube([4*ro, 4*ro, eps+2*ro], center=true);
+                //translate([0, 0, hi + ro])
+                //cube([4*ro, 4*ro, eps+2*ro], center=true);
             }
         }
     }
     
     difference() {
-        solid();
+        union() {
+            solid();
+            if (!is_undef(proj_angles)) {
+                translate(proj_offset) rotate(-proj_angles)
+                    linear_extrude(proj_h) projection() rotate(proj_angles) solid();
+            }
+        }
         drill_holes();
     }
 }
 
 module joint_wing_top_front() {
-    delta =  di_08mm/2 + wall;
-    s = 0.35; // todo base on angle
-    multi_joint(
-        h=[h_joint, h_joint, h_joint, h_joint],
-        azim=[90, -90, 0, 0],
-        elev=[theta, theta, -90, 0],
-        d=[di_08mm, di_08mm, di_08mm, di_08mm],
-        through=[false, false, false, false],
-        wall=[wall, wall, wall, wall],
-        rounded=rounded_joints);
-    module fin() {
-        translate([-di_08mm/2 - wall, 0,  delta])
-            rotate([0, 90, 0]) linear_extrude(wall) polygon([
-                [0, 0], [h_joint + delta, 0], [wall, h_joint - wall], [0, h_joint - wall], [0, h_joint]]);
-    }
-    fin();
-    mirror([0, 1, 0]) fin();
+multi_joint(
+    h=[h_joint, h_joint, h_joint, h_joint],
+    azim=[90, -90, 0, 0],
+    elev=[theta, theta, -90, 0],
+    d=[di_08mm, di_08mm, di_08mm, di_08mm],
+    through=[false, false, false, false],
+    wall=[wall, wall, wall, wall],
+    rounded=[true, true, true, true],
+        proj_angles=[0,-90,0],
+        proj_offset=[-2*wall, 0, 0],
+        proj_h = 2*wall);
 }
 
 module joint_wing_top_rear() {
-    delta =  di_08mm/2 + wall;
-    s = 0.35; // todo base on angle
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint],
         azim=[90 - alpha, -90 + alpha, 0, 0],
@@ -158,47 +159,25 @@ module joint_wing_top_rear() {
         d=[di_08mm, di_08mm, di_08mm, di_08mm],
         through=[false, false, false, false],
         wall=[wall, wall, wall, wall],
-        rounded=rounded_joints);
-    module fin() {
-        translate([-di_08mm/2 - wall, 0,  delta])
-            rotate([0, 90, 0]) linear_extrude(wall) polygon([
-                [0, 0], [h_joint + delta, 0], [wall, h_joint], [0, h_joint], [0, h_joint]]);
-        translate([-di_08mm/2 - wall, 0,  wall])
-            rotate([0, 0, 0]) linear_extrude(wall) polygon([
-                [0, 0],  [wall, 0], [h_joint*s, h_joint-wall], [0, h_joint],]);
-    }
-    fin();
-    mirror([0, 1, 0]) fin();
+        rounded=[true, true, true, true],
+        proj_angles=[0,-90,0],
+        proj_offset=[-2*wall, 0, 0],
+        proj_h = 5*wall);
 }
 
 module joint_wing_bottom_front() {
-    module joint() {
-        multi_joint(
-            h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
-            azim=[90, -90, 0, 0, 90, -90],
-            elev=[25, 25, 90, aoi, -lg_theta, -lg_theta],
-            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], di_08mm, di_08mm],
-            through=[false, false, false, true, false, false],
-            wall=[wall, wall, wall, wall, wall, wall, wall, wall],
-            rounded=rounded_joints);
-    }
-    
-    translate([-(di_08mm/2 + wall), 0]) rotate([0, 90, 0]) difference() {
-        cylinder(h=wall, r=h_joint);
-        translate([0, 0, -1.5]) rotate([0, aoi, 0]) cube([1.5, 1.5, 100], true);
-    }
-    
-    // cut joint flat
-    difference() {
-        joint();
-        translate([-(5 + di_08mm/2 + wall), 0, 0]) cube([10, 100, 100], center=true);
-    }
+    multi_joint(
+        h=[h_joint, h_joint, h_joint, h_joint, h_joint, h_joint],
+        azim=[90, -90, 0, 0, 90, -90],
+        elev=[25, 25, 90, aoi, -lg_theta, -lg_theta],
+        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], di_08mm, di_08mm],
+        through=[false, false, false, true, false, false],
+        wall=[wall, wall, wall, wall, wall, wall],
+        rounded=[true, true, true, false, true, true],
+        proj_angles=[0, 90, 0], proj_offset=[0, 0, 0], proj_h=2);
 }
 
 module joint_wing_bottom_rear() {
-    delta =  (1.5 + wall)/2;
-    s1 = 0.7; // TODO
-    s2 = 0.35;
     multi_joint(
             h=[h_joint, h_joint, h_joint, h_joint, wall*1],
         azim=[90 - alpha, -90 + alpha, 0, 0, 180],
@@ -206,23 +185,10 @@ module joint_wing_bottom_rear() {
         d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], [1.5, 1.5]],
         through=[false, false, false, true, true],
         wall=[wall, wall, wall, wall, wall],
-        rounded=rounded_joints);
-    module fin() {
-        translate([-di_08mm/2, 0,  delta])
-            rotate([0, -90, 0]) linear_extrude(wall) polygon([
-                [-2*wall-di_08mm, 0], [h_joint*s1 + delta, 0], [h_joint*s1 + delta, wall], [wall, h_joint], [0, h_joint], [0, h_joint]]);
-        translate([-di_08mm/2 - wall, 0,  delta])
-            rotate([0, 0, 0]) linear_extrude(wall) polygon([
-                [0, 0],  [wall, 0], [h_joint*s2, h_joint-wall], [0, h_joint],]);
-    }
-    
-    difference() {
-        union() {
-            fin();
-            mirror([0, 1, 0]) fin();
-        }
-        translate([-500, 0, 0]) cube([1000, 1.5, 1.5], center=true);
-    }
+        rounded=[true, true, true, false, false],
+        proj_angles=[0,-90,0],
+        proj_offset=[-3.5*wall, 0, 0],
+        proj_h = 6*wall);
 }
 
 module joint_wing_top_front_right() {
@@ -233,10 +199,9 @@ module joint_wing_top_front_right() {
         d=[di_08mm, di_08mm, di_08mm],
         through=[false, true, false],
         wall=[wall, wall, wall],
-        rounded=rounded_joints);
-    translate([-di_08mm/2+wall, 0,  wall])
-    linear_extrude(wall) polygon([
-        [0, 0], [-h_joint, 0], [-h_joint, wall], [0, h_joint-wall], [wall, h_joint-wall]]);
+        proj_angles=[0,0,0],
+        proj_offset=[0, 0, 0],
+        proj_h = 1*wall);
 }
 
 module joint_wing_top_front_left() {
@@ -251,10 +216,10 @@ module joint_wing_top_rear_right() {
         d=[di_08mm, di_08mm, di_08mm],
         through=[true, false, false],
         wall=[wall, wall, wall],
-        rounded=rounded_joints);
-    translate([-di_08mm/2-wall/2, 0,  wall])
-    linear_extrude(wall) polygon([
-        [0, 0], [h_joint, 0], [h_joint, wall], [wall-1, h_joint-wall], [-1, h_joint-wall]]);
+        rounded=[true, true, true],
+        proj_angles=[0,0,0],
+        proj_offset=[0, 0, 0],
+        proj_h = 2*wall);
 }
 
 module joint_wing_top_rear_left() {
@@ -269,10 +234,10 @@ module joint_wing_top_front_right_tip() {
         d=[di_08mm, di_08mm],
         through=[false, false],
         wall=[wall, wall],
-        rounded=rounded_joints);
-    translate([-di_08mm/2+wall, 0,  wall])
-    linear_extrude(wall) polygon([
-        [0, 0], [-h_joint, 0], [-h_joint, wall], [0, h_joint-wall], [wall, h_joint-wall]]);
+        rounded=[true, true, true],
+    proj_angles=[0,0,0],
+    proj_offset=[0, 0, 0],
+    proj_h = 2*wall);
 }
 
 module joint_wing_top_front_left_tip() {
@@ -287,10 +252,10 @@ module joint_wing_top_rear_right_tip() {
         d=[di_08mm, di_08mm],
         through=[false, false],
         wall=[wall, wall],
-        rounded=rounded_joints);
-    translate([-di_08mm/2-wall/2, 0,  wall])
-    linear_extrude(wall) polygon([
-        [0, 0], [h_joint, 0], [h_joint, wall], [wall-1, h_joint-wall], [-1, h_joint-wall]]);
+        rounded=[true, true, true],
+        proj_angles=[0,0,0],
+        proj_offset=[0, 0, 0],
+        proj_h = 2*wall);
 }
 
 module joint_wing_top_rear_left_tip() {
@@ -305,9 +270,9 @@ module joint_gear_elevator() {
         d=[[1.5, 1.5]],
         through=[false],
         wall=[wall],
-        rounded=rounded_joints);
+        rounded=[false]);
     
-    translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
+        translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
     polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
 
     x1 = -wall - 1.5/2;
@@ -321,19 +286,21 @@ module joint_gear_elevator() {
         d=[di_08mm, di_08mm],
         through=[true],
         wall=[wall+delta, wall+delta],
-        rounded=rounded_joints);
+        rounded=[true, true],
+        proj_angles=[0,0,0],
+        proj_offset=[0, 0, -2.3*wall],
+        proj_h = 2*wall);
     translate([x3, 0, -delta- eps]) multi_joint(
-        h=[h_joint, di_08mm/2 + wall+0.05],
-        azim=[0, 0],
-        elev=[90, -90],
-        d=[di_08mm, di_08mm],
-        through=[true, true],
-        wall=[wall, wall],
-        rounded=rounded_joints);
-
-    translate([0, 0,  -(di_08mm/2+1.5*wall)])
-    linear_extrude(wall) polygon([
-        [h_joint, wall], [h_joint, -wall], [-(3.5*wall + di_08mm), -h_joint/2], [-(3.5*wall + di_08mm), h_joint/2]]);
+        h=[h_joint],
+        azim=[0],
+        elev=[90],
+        d=[di_08mm],
+        through=[true],
+        wall=[wall],
+        rounded=[true],
+        proj_angles=[0,0,0],
+        proj_offset=[0, 0, -1.87*wall],
+        proj_h = 2*wall);
 }
 
 module cf_rod(rod) {
@@ -484,7 +451,7 @@ module joints() {
 }
 
 module assembly() {
-    //rods();
+    rods();
     joints();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
