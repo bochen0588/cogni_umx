@@ -200,23 +200,29 @@ module joint_wing_bottom_rear() {
     s1 = 0.7; // TODO
     s2 = 0.35;
     multi_joint(
-        h=[h_joint, h_joint, h_joint, h_joint],
-        azim=[90 - alpha, -90 + alpha, 0, 0],
-        elev=[19, 19, 90, -aoi],
-        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
-        through=[false, false, false, true],
-        wall=[wall, wall, wall, wall, wall, wall],
+            h=[h_joint, h_joint, h_joint, h_joint, wall*1],
+        azim=[90 - alpha, -90 + alpha, 0, 0, 180],
+        elev=[19, 19, 90, -aoi, aoi],
+        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5], [1.5, 1.5]],
+        through=[false, false, false, true, true],
+        wall=[wall, wall, wall, wall, wall],
         rounded=rounded_joints);
     module fin() {
-        translate([-di_08mm/2-wall/2, 0,  delta])
+        translate([-di_08mm/2, 0,  delta])
             rotate([0, -90, 0]) linear_extrude(wall) polygon([
-                [0, 0], [h_joint*s1 + delta, 0], [h_joint*s1 + delta, wall], [wall, h_joint], [0, h_joint], [0, h_joint]]);
+                [-2*wall-di_08mm, 0], [h_joint*s1 + delta, 0], [h_joint*s1 + delta, wall], [wall, h_joint], [0, h_joint], [0, h_joint]]);
         translate([-di_08mm/2 - wall, 0,  delta])
             rotate([0, 0, 0]) linear_extrude(wall) polygon([
                 [0, 0],  [wall, 0], [h_joint*s2, h_joint-wall], [0, h_joint],]);
     }
-    fin();
-    mirror([0, 1, 0]) fin();
+    
+    difference() {
+        union() {
+            fin();
+            mirror([0, 1, 0]) fin();
+        }
+        translate([-500, 0, 0]) cube([1000, 1.5, 1.5], center=true);
+    }
 }
 
 module joint_wing_top_front_right() {
