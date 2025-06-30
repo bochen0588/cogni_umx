@@ -97,134 +97,160 @@ module multi_joint(h, azim, elev, d, through, wall, rounded, webbing) {
     // through: (whether or not hole goes all the way through)
     // wall: wall thickness
     // rounded: whether to use round or square joint, square better for printing
-    // webbing [ [side1 , side2, thick, length] , [...], ]  list of webbing triangles
+    // webbing [ [side1 , side2, x1, x2, len] , [...], ... ]  list of webbing triangles
+    //     x1 and x2 define the offset distance from 0
+    //     to define the thickness of the web
+    difference() {
+        multi_joint_solid(h, azim, elev, d, through, wall, rounded, webbing);
+        multi_joint_drill_holes(h, azim, elev, d, through, wall, rounded);
+    };
+}
 
-    module solid() {
-        for (i = [0:len(h)-1]) {
-            hi = h[i];
-            r = eps;
-            azimi = azim[i];
-            elevi = elev[i];
-            di = is_list(d[i]) ? max(d[i]) : d[i];
-            walli = wall[i];
-            roundedi = rounded[i];
-            ro = walli + di/2;
+module multi_joint_solid(h, azim, elev, d, through, wall, rounded, webbing) {
+    for (i = [0:len(h)-1]) {
+        hi = h[i];
+        r = eps;
+        azimi = azim[i];
+        elevi = elev[i];
+        di = is_list(d[i]) ? max(d[i]) : d[i];
+        walli = wall[i];
+        roundedi = rounded[i];
+        ro = walli + di/2;
+        difference() {
             minkowski() {
-                rotate([0, 90 - elevi, azimi]) cylinder(h=hi, r=.0001);
+                    rotate([0, 90 - elevi, azimi]) cylinder(h=hi, r=.0001);
                 if (roundedi) {
                     sphere(r=ro);
                 } else {
                     rotate([0, 90 - elevi, azimi]) cube(size=2*ro, center=true);
                 }
             }
-        }
-        for (web = webbing) {
-            j0 = web[0];
-            j1 = web[1];
-            wall = web[2];
-            h = web[3];
-            p0 = rotate_euler_zyx([1.0, 0, 0], [0, -elev[j0], azim[j0]]);
-            p1 = rotate_euler_zyx([1.0, 0, 0], [0, -elev[j1], azim[j1]]);
-            cvect = cross(p0, p1);
-            cuvect = wall/2*cvect / norm(cvect);
-            verts = [ for (j = [j0, j1])
-                rotate_euler_zyx([h, 0, 0], [0, -elev[j], azim[j]]) - cuvect
-            ];
-            verts2 = [ for (j = [j0, j1])
-                rotate_euler_zyx([h, 0, 0], [0, -elev[j], azim[j]]) + cuvect
-            ];
-            points = concat([-cuvect], verts, [cuvect], verts2);
-            A = 0;  // bottom center
-            B = 1;
-            C = 2;
-            D = 3;  // top center
-            E = 4;
-            F = 5;
-            faces = [
-                [A, B, C],  // bottom triangle
-                [D, F, E],  // top triangle (reversed winding for outward normal)
-
-                // side faces (quads split into triangles)
-                [A, D, E], [A, E, B],  // side 1
-                [B, E, F], [B, F, C],  // side 2
-                [C, F, D], [C, D, A]   // side 3
-            ];
-            polyhedron(points=points, faces=faces);
+            // cut off end
+            rotate([0, 90 - elevi, azimi])
+            translate([0, 0, hi + ro])
+            cube([4*ro, 4*ro, eps+2*ro], center=true);
         }
     }
-    
-    module drill_holes() {
-        for (i = [0:len(h)-1]) { // cylinderical hole for each joint
-            hi = h[i];
-            r = 0.001;
-            azimi = azim[i];
-            elevi = elev[i];
-            di = is_list(d[i]) ? max(d[i]) : d[i];
-            walli = wall[i];
-            throughi = through[i];
-            roundedi = rounded[i];
-            ro = walli + di/2;
-            rotate([0, 90 - elevi, azimi]) union() {
-                if (is_list(d[i])) {
-                    if (through[i]) {
-                        translate([0, 0, 0]) cube([d[i][0],  d[i][1], 10*hi], center=true);
-                    } else {
-                        translate([0, 0, 5*hi]) cube([d[i][0],  d[i][1], 10*hi], center=true);
-                    }
+    for (web = webbing) {
+        j0 = web[0];
+        j1 = web[1];
+        x1 = web[2];
+        x2 = web[3];
+        h = web[4];
+
+        p0 = rotate_euler_zyx([1.0, 0, 0], [0, -elev[j0], azim[j0]]);
+        p1 = rotate_euler_zyx([1.0, 0, 0], [0, -elev[j1], azim[j1]]);
+        cvect = cross(p0, p1);
+        cuvect = cvect / norm(cvect);
+        verts = [ for (j = [j0, j1])
+            rotate_euler_zyx([h, 0, 0], [0, -elev[j], azim[j]]) + x1*cuvect
+        ];
+        verts2 = [ for (j = [j0, j1])
+            rotate_euler_zyx([h, 0, 0], [0, -elev[j], azim[j]]) + x2*cuvect
+        ];
+        points = concat([x1*cuvect], verts, [x2*cuvect], verts2);
+        A = 0;  // bottom center
+        B = 1;
+        C = 2;
+        D = 3;  // top center
+        E = 4;
+        F = 5;
+        faces = [
+            [A, B, C],  // bottom triangle
+            [D, F, E],  // top triangle (reversed winding for outward normal)
+
+            // side faces (quads split into triangles)
+            [A, D, E], [A, E, B],  // side 1
+            [B, E, F], [B, F, C],  // side 2
+            [C, F, D], [C, D, A]   // side 3
+        ];
+        polyhedron(points=points, faces=faces);
+    }
+}
+
+
+module multi_joint_drill_holes(h, azim, elev, d, through, wall, rounded) {
+    for (i = [0:len(h)-1]) { // cylinderical hole for each joint
+        hi = h[i];
+        r = 0.001;
+        azimi = azim[i];
+        elevi = elev[i];
+        di = is_list(d[i]) ? max(d[i]) : d[i];
+        walli = wall[i];
+        throughi = through[i];
+        roundedi = rounded[i];
+        ro = walli + di/2;
+        rotate([0, 90 - elevi, azimi]) union() {
+            if (is_list(d[i])) {
+                if (through[i]) {
+                    translate([0, 0, 0]) cube([d[i][0],  d[i][1], 10*hi], center=true);
                 } else {
-                    if (through[i]) {
-                        translate([0, 0, -5*hi]) cylinder(h=10*hi, d=di); // cut tube for rod
-                    } else {
-                        cylinder(h=10*hi, d=di); // cut tube for rod
-                    }
+                    translate([0, 0, 5*hi]) cube([d[i][0],  d[i][1], 10*hi], center=true);
                 }
-                // cut off end
-                translate([0, 0, hi + ro])
-                cube([4*ro, 4*ro, eps+2*ro], center=true);
+            } else {
+                if (through[i]) {
+                    translate([0, 0, -5*hi]) cylinder(h=10*hi, d=di); // cut tube for rod
+                } else {
+                    cylinder(h=10*hi, d=di); // cut tube for rod
+                }
             }
         }
-    }
-    
-    difference() {
-        solid();
-        drill_holes();
     }
 }
 
 module joint_wing_top_front() {
-multi_joint(
-    h=[h_joint, h_joint, h_joint, h_joint],
-    azim=[90, -90, 0, 0],
-    elev=[theta, theta, -90, 0],
-    d=[di_08mm, di_08mm, di_08mm, di_08mm],
-    through=[false, false, false, false],
-    wall=[wall, wall, wall, wall],
-    rounded=[true, true, true, true],
-    webbing=[
-        [0, 2, wall, h_joint],
-        [0, 3, wall, h_joint],
-        [3, 1, wall, h_joint],
-        [3, 2, wall, h_joint],
-        [2, 1, wall, h_joint]
-    ]);
-}
-
-module joint_wing_top_rear() {
     multi_joint(
         h=[h_joint, h_joint, h_joint, h_joint],
-        azim=[90 - alpha, -90 + alpha, 0, 0],
+        azim=[90, -90, 0, 0],
         elev=[theta, theta, -90, 0],
         d=[di_08mm, di_08mm, di_08mm, di_08mm],
         through=[false, false, false, false],
         wall=[wall, wall, wall, wall],
         rounded=[true, true, true, true],
         webbing=[
-        [0, 2, wall, h_joint],
-        [0, 3, wall, h_joint],
-        [3, 1, wall, h_joint],
-        [3, 2, wall, h_joint],
-        [2, 1, wall, h_joint]
-    ]);
+            [0, 2, di_08mm/2, di_08mm/2 + wall, h_joint],
+            [0, 3, -wall/2, wall/2, h_joint],
+            [3, 1, -wall/2, wall/2, h_joint],
+            [3, 2, -wall/2, wall/2, h_joint],
+            [2, 1, di_08mm/2, di_08mm/2 + wall, h_joint]
+        ]);
+}
+
+module joint_wing_top_rear() {
+    module solid() {
+        multi_joint_solid(
+            h=[h_joint, h_joint, h_joint, h_joint],
+            azim=[90 - alpha, -90 + alpha, 0, 0],
+            elev=[theta, theta, -90, 0],
+            d=[di_08mm, di_08mm, di_08mm, di_08mm],
+            through=[false, false, false, false],
+            wall=[wall, wall, wall*1.2, wall],
+            rounded=[true, true, true, true],
+            webbing=[
+            [0, 2, di_08mm/2, di_08mm/2 + 10*wall, h_joint],
+            [0, 3, -wall/2, wall/2, h_joint],
+            [3, 1, -wall/2, wall/2, h_joint],
+            [3, 2, -wall/2, wall/2, h_joint],
+            [2, 1, di_08mm/2, di_08mm/2 + 10*wall, h_joint]
+            ]);
+    }
+    module holes() {
+        multi_joint_drill_holes(
+            h=[h_joint, h_joint, h_joint, h_joint],
+            azim=[90 - alpha, -90 + alpha, 0, 0],
+            elev=[theta, theta, -90, 0],
+            d=[di_08mm, di_08mm, di_08mm, di_08mm],
+            through=[false, false, false, false],
+            wall=[wall, wall, wall, wall],
+            rounded=[true, true, true, true]
+        );
+    }
+    delta = di_08mm/2 + wall;
+    difference() {
+        solid();
+        holes();
+        translate([-100/2-delta, 0, 0]) cube([100, 100, 100], center=true);
+    }
 }
 
 module joint_wing_bottom_front() {
@@ -237,34 +263,53 @@ module joint_wing_bottom_front() {
         wall=[wall, wall, wall, wall, wall, wall],
         rounded=[true, true, true, false, true, true],
         webbing = [
-            [1, 2, wall, h_joint],
-            [3, 2, wall, h_joint],
-            [3, 4, wall, h_joint],
-            [3, 5, wall, h_joint],
-            [4, 5, wall, h_joint],
-            [2, 5, wall, h_joint],
-            [1, 5, wall, h_joint],
-            [0, 2, wall, h_joint],
-            [0, 4, wall, h_joint]
+            [1, 2, di_08mm/2, 1.5, h_joint],
+            [3, 2, -wall/2, wall/2, h_joint],
+            [3, 4, -wall/2, wall/2, h_joint],
+            [3, 5, -wall/2, wall/2, h_joint],
+            [4, 5, di_08mm/2, 1.5, h_joint],
+            [5, 1, di_08mm/2, 1.5, h_joint],
+            [2, 0, di_08mm/2, 1.5, h_joint],
+            [0, 4, di_08mm/2, 1.5, h_joint]
         ]);
 }
 
 module joint_wing_bottom_rear() {
-    multi_joint(
-            h=[h_joint, h_joint, h_joint, h_joint],
-        azim=[90 - alpha, -90 + alpha, 0, 0],
-        elev=[19, 19, 90, -aoi],
-        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
-        through=[false, false, false, true],
-        wall=[wall, wall, wall, wall],
-        rounded=[true, true, true, false],
-        webbing=[
-        [0, 2, wall, h_joint],
-        [0, 3, wall, h_joint],
-        [3, 1, wall, h_joint],
-        [3, 2, wall, h_joint],
-        [2, 1, wall, h_joint]
-    ]);
+    module solid() {
+        multi_joint_solid(
+                h=[h_joint, h_joint, h_joint, h_joint],
+            azim=[90 - alpha, -90 + alpha, 0, 0],
+            elev=[19, 19, 90, -aoi],
+            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
+            through=[false, false, false, true],
+            wall=[wall, wall, 1.2*wall, wall],
+            rounded=[true, true, true, false],
+            webbing=[
+                [2, 0, di_08mm/2, di_08mm/2 + wall*10, h_joint],
+                [0, 3, -wall/2, wall/2, h_joint],
+                [3, 1, -wall/2, wall/2, h_joint],
+                [3, 2, -wall/2, wall/2, h_joint],
+                [1, 2, di_08mm/2, di_08mm/2 + wall*10, h_joint],
+            ]
+        );
+    }
+    module holes() {
+        multi_joint_drill_holes(
+                h=[h_joint, h_joint, h_joint, h_joint],
+            azim=[90 - alpha, -90 + alpha, 0, 0],
+            elev=[19, 19, 90, -aoi],
+            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
+            through=[false, false, false, true],
+            wall=[wall, wall, wall, wall],
+            rounded=[true, true, true, false]
+        );
+    }
+    delta = di_08mm/2 + wall;
+    difference() {
+        solid();
+        holes();
+        translate([-100/2-delta, 0, 0]) cube([100, 100, 100], center=true);
+    }
 }
 
 module joint_wing_top_front_right() {
@@ -277,7 +322,8 @@ module joint_wing_top_front_right() {
         wall=[wall, wall, wall],
         rounded=[true, true, true],
         webbing = [
-            [1, 2, wall, h_joint],
+                [1, 2, di_08mm/2, di_08mm/2 + wall, h_joint],
+                [0, 1, di_08mm/2, di_08mm/2 + wall, h_joint],
         ]
     );
 }
@@ -296,7 +342,8 @@ module joint_wing_top_rear_right() {
         wall=[wall, wall, wall],
         rounded=[true, true, true],
         webbing = [
-        [0, 2, wall, h_joint]
+        [2, 1, di_08mm/2, di_08mm/2 + wall, h_joint],
+        [1, 0, di_08mm/2, di_08mm/2 + wall, h_joint],
     ]);
 }
 
@@ -314,7 +361,7 @@ module joint_wing_top_front_right_tip() {
         wall=[wall, wall],
         rounded=[true, true, true],
         webbing = [
-            [0, 1, wall, h_joint]
+            [0, 1, di_08mm/2, di_08mm/2 + wall, h_joint]
         ]);
 }
 
@@ -332,7 +379,7 @@ module joint_wing_top_rear_right_tip() {
         wall=[wall, wall],
         rounded=[true, true, true],
         webbing = [
-            [0, 1, wall, h_joint]
+            [0, 1, di_08mm/2, di_08mm/2 + wall, h_joint]
         ]);
 }
 
@@ -341,38 +388,70 @@ module joint_wing_top_rear_left_tip() {
 }
 
 module joint_gear_elevator() {
-    multi_joint(
-        h=[h_joint],
-        azim=[0],
-        elev=[0],
-        d=[[1.5, 1.5]],
-        through=[false],
-        wall=[wall],
-        rounded=[false]);
-    
-        translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
-    polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
-
     x1 = -wall - 1.5/2;
     x2 = x1 - di_08mm/2;
     x3 = x2 - 1.5*di_08mm - wall/2;
     delta = (1.5 - di_08mm)/2;
-    translate([x2, 0, 0]) multi_joint(
-        h=[h_joint/2, h_joint/2],
-        azim=[90, -90],
-        elev=[0, 0],
-        d=[di_08mm, di_08mm],
-        through=[true],
-        wall=[wall+delta, wall+delta],
-        rounded=[true, true]);
-    translate([x3, 0, -delta- eps]) multi_joint(
-        h=[h_joint],
-        azim=[0],
-        elev=[90],
-        d=[di_08mm],
-        through=[true],
-        wall=[wall],
-        rounded=[true]);
+    
+    difference() {
+        union() {
+            translate([1, 0, 0]) cube([h_joint*1.8, 3, 3], true);
+            multi_joint_solid(
+                h=[h_joint],
+                azim=[0],
+                elev=[0],
+                d=[[1.5, 1.5]],
+                through=[false],
+                wall=[wall],
+                rounded=[false]);
+            translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
+                polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
+            
+            translate([x2, 0, 0]) multi_joint_solid(
+                h=[h_joint/2, h_joint/2],
+                azim=[90, -90],
+                elev=[0, 0],
+                d=[di_08mm, di_08mm],
+                through=[true],
+                wall=[wall+delta, wall+delta],
+                rounded=[true, true]);
+            
+            translate([x3, 0, -delta- eps]) multi_joint_solid(
+                h=[h_joint],
+                azim=[0],
+                elev=[90],
+                d=[di_08mm],
+                through=[true],
+                wall=[wall],
+                rounded=[true]);
+        }
+        multi_joint_drill_holes(
+            h=[h_joint],
+            azim=[0],
+            elev=[0],
+            d=[[1.5, 1.5]],
+            through=[false],
+            wall=[wall],
+            rounded=[false]);
+        translate([x2, 0, 0]) multi_joint_drill_holes(
+            h=[h_joint/2, h_joint/2],
+            azim=[90, -90],
+            elev=[0, 0],
+            d=[di_08mm, di_08mm],
+            through=[true],
+            wall=[wall+delta, wall+delta],
+            rounded=[true, true]);
+        translate([x3, 0, -delta- eps]) multi_joint_drill_holes(
+            h=[h_joint],
+            azim=[0],
+            elev=[90],
+            d=[di_08mm],
+            through=[true],
+            wall=[wall],
+            rounded=[true]);
+    }
+    
+
 }
 
 module cf_rod(rod) {
