@@ -6,7 +6,7 @@ $fn=16;
 
 part = "assembly";
 
-do_echo = false;
+do_echo = true;
 
 VER_MAJOR = 0;
 VER_MINOR = 1;
@@ -24,13 +24,22 @@ h_joint = 7; // joint length
 wall = 0.6; // wall thickness
 lg_theta = 45; // landing gear angle
 deck_angle = 12; // tail dragger deck angle
-tail_arm = 280;  // tail arm usually 2-3x mac
+lh = 290; // horizontal tail moment arm usually 2-3x cbar
+lv = lh; // vertical tail moment arm (similar to lh)
 aoi = 5; // angle of incidence with thrust axis
+
+ARh = 3; // trainer 2-4, sport 3-5
+ARv = 1.5;  // trainer 1-2, sport 1.5-2.5
+
+Vh = 0.4; // horizontal tail volume coeff. (0.4-0.6 trainer), (0.3-0.5 sport)
+Vv = 0.03; // vertical tail volume coeff. (0.03 - 0.05 trainer), (0.02-0.035 sport)
 
 // TODO: auto calculate these using geometry
 down_angle = 18.5;
 down_angle_rear = 12.4;
 theta_rear_fix = 0.18;
+rudder_ratio = 0.3; // ratio of rudder to vertical tail area, trainer (0.25-0.4), sport (0.3-0.5)
+elevator_ratio = 0.3; // ratio of elevator to horizontal tail area, trainer (0.25-0.4), sport (0.3-0.5)
 
 //--------------------------------
 // CALCULATED VALUES
@@ -42,9 +51,34 @@ bp = b/cos(theta); // actual length of wing
 
 c_root = 2*S/(b*(1 + lambda)); // chord at root, mm
 c_tip = lambda*c_root; // chord at tip, mm
-mac = (c_root + c_tip)/2;
+cbar = (c_root + c_tip)/2;
 title = str("COGNI_UMX v", VER_MAJOR, ".", VER_MINOR);
 alpha = atan2(c_root - c_tip, b/2);
+Sh = Vh * S * cbar / lh; // horizontal tail area
+Sv = Vv * S * b / lv;  // vertical tail area
+
+hv = sqrt(ARv * Sv);  // height of vertical tail
+bh = sqrt(ARh * Sh);  // span of horizontal tail
+
+Sr = Sv * rudder_ratio; // area of rudder
+Se = Sh * elevator_ratio; // area of elevator
+ce = Se / bh; // chord of elevator
+ch = 2 * Sh * (1 - elevator_ratio) / bh;  // root chord of horizontal tail (triangular)
+cr = Sr / hv; // rectangular elevator
+cv = 2 * Sv * (1 - rudder_ratio)/ hv;
+
+
+htail_start = lh - ch;
+vtail_start = lh - cv;
+
+htail_sweep = atan((bh/2)/ch);
+vtail_sweep = atan(hv/cv);
+
+htail_spar =  ch/cos(htail_sweep);
+vtail_spar =  cv/cos(vtail_sweep);
+
+
+assert((ch*bh/2 + ce*bh) == Sh, "horizontal tail area wrong");
 
 if (do_echo) {
     echo(title);
@@ -52,6 +86,13 @@ if (do_echo) {
     echo("wing span", b, "mm");
     echo("chord root", c_root, "mm");
     echo("chord tip", c_tip, "mm");
+    echo("tail arm ratio", lh / cbar);
+    echo("horizontal tail area", Sh*1e-4, "dm^2");
+    echo("chord horz tail", ch, "mm");
+    echo("check horz tail area", (ch*bh/2 + ce*bh)*1e-4, "dm^2");
+    echo("chord vert tail", cv, "mm");
+    echo("htail sweep", htail_sweep, "deg");
+    echo("vtail sweep", vtail_sweep, "deg");
 }
 
 //--------------------------------
@@ -387,6 +428,36 @@ module joint_wing_top_rear_left_tip() {
     mirror([0, 1, 0]) joint_wing_top_rear_right_tip();
 }
 
+module joint_vtail_front() {
+    multi_joint(
+        h=[h_joint, h_joint],
+        azim=[180, 180],
+        elev=[0, vtail_sweep],
+        d=[[1.5, 1.5], di_08mm],
+        through=[true, false],
+        wall=[wall, wall],
+        rounded=[false, true],
+        webbing = [
+            [0, 1, -wall/2, wall/2, h_joint]
+        ]);
+}
+
+module joint_htail_front() {
+    multi_joint(
+        h=[h_joint, h_joint, h_joint],
+        azim=[180, -(90 + htail_sweep), (90 + htail_sweep)],
+        elev=[0, 0, 0],
+        d=[[1.5, 1.5], di_08mm, di_08mm],
+        through=[true, false, false],
+        wall=[wall, wall, wall],
+        rounded=[false, true, true],
+        webbing = [
+            [1, 0, di_08mm/2, di_08mm/2 + wall + 0.25, h_joint],
+            [0, 2, di_08mm/2, di_08mm/2 + wall + 0.25, h_joint]
+        ]);
+}
+
+
 module joint_gear_elevator() {
     x1 = -wall - 1.5/2;
     x2 = x1 - di_08mm/2;
@@ -534,6 +605,9 @@ cf_rods = [
     [c_root*(1 - lambda*0.5), 0.8], //10
     [c_tip, 0.8], //11
     [c_tip, 0.8], //12
+    [htail_spar, 0.8], // 13
+    [htail_spar, 0.8], // 14
+    [vtail_spar, 0.8], // 15
 ];
 
 steel_rods = [
@@ -560,12 +634,12 @@ module rods() {
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, 90])  steel_rod(steel_rods[0]);
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, -90])  steel_rod(steel_rods[1]);
 
-    rotate([0, aoi, 0]) translate([20, 0, -fuse_z]) cf_square_rod(cf_square_rods[0]);
+    rotate([0, aoi, 0]) translate([10, 0, -fuse_z]) cf_square_rod(cf_square_rods[0]);
 
     translate([0, 50, -fuse_z-50]) rotate([0, 0, 180]) wheel(d=40);
     translate([0, -50, -fuse_z-50]) wheel(d=40);
   
-    translate([-tail_arm, 0, -fuse_z]) wheel(d=30);
+    translate([-lh, 0, -fuse_z]) wheel(d=30);
 
     translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, 90]) cf_rod(cf_rods[7]);
     translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, -90]) cf_rod(cf_rods[8]);
@@ -578,6 +652,15 @@ module rods() {
     
     rotate([theta, 0, 180]) translate([0, bp/2, 0]) cf_rod(cf_rods[11]);
     rotate([-theta, 0, 180]) translate([0, -bp/2, 0]) cf_rod(cf_rods[12]);
+    
+    translate([-htail_start, 0, -fuse_z + htail_start*tan(aoi)])
+    rotate([0, 0, 180 - htail_sweep])  cf_rod(cf_rods[13]); // htail spar 1
+
+    translate([-htail_start, 0, -fuse_z + htail_start*tan(aoi)])
+    rotate([0, 0, 180 + htail_sweep])  cf_rod(cf_rods[14]); // htail spar 2
+   
+    translate([-vtail_start, 0, -fuse_z + vtail_start*tan(aoi)])
+    rotate([0, -vtail_sweep, 180])  cf_rod(cf_rods[15]); // htail spar
 }
 
 module joints() {
@@ -598,7 +681,10 @@ module joints() {
 
     translate([0, 0, 0]) rotate([0, 0, 180]) joint_wing_top_front();
     translate([-c_root, 0, 0]) rotate([0, 0, 0]) joint_wing_top_rear();
-    translate([-280, 0, -fuse_z + 280*tan(aoi)]) rotate([0, aoi, 0]) joint_gear_elevator();
+    
+    translate([-htail_start, 0, -fuse_z + htail_start*tan(aoi)]) rotate([0, aoi, 0]) joint_htail_front();
+    translate([-vtail_start, 0, -fuse_z + vtail_start*tan(aoi)]) rotate([0, aoi, 0]) joint_vtail_front();
+    translate([-lh, 0, -fuse_z + lh*tan(aoi)]) rotate([0, aoi, 0]) joint_gear_elevator();
 }
 
 module assembly() {
@@ -685,7 +771,7 @@ if (part == "joint_wing_top_front") {
 } else if (part == "rod_template") {
     rod_template();
 } else if (part == "assembly") {
-    assembly();
+    rotate([0, -aoi, 0]) assembly();
 } else {
     assert(false, str("unkonwn part: ", part));
 }
