@@ -608,6 +608,7 @@ cf_rods = [
     [htail_spar, 0.8], // 13
     [htail_spar, 0.8], // 14
     [vtail_spar, 0.8], // 15
+    [bh, 0.8], // 16
 ];
 
 steel_rods = [
@@ -654,13 +655,16 @@ module rods() {
     rotate([-theta, 0, 180]) translate([0, -bp/2, 0]) cf_rod(cf_rods[12]);
     
     translate([-htail_start, 0, -fuse_z + htail_start*tan(aoi)])
-    rotate([0, 0, 180 - htail_sweep])  cf_rod(cf_rods[13]); // htail spar 1
+    rotate([0, -aoi, 180 - htail_sweep])  cf_rod(cf_rods[13]); // htail spar 1
 
     translate([-htail_start, 0, -fuse_z + htail_start*tan(aoi)])
-    rotate([0, 0, 180 + htail_sweep])  cf_rod(cf_rods[14]); // htail spar 2
+    rotate([0, -aoi, 180 + htail_sweep])  cf_rod(cf_rods[14]); // htail spar 2
    
     translate([-vtail_start, 0, -fuse_z + vtail_start*tan(aoi)])
-    rotate([0, -vtail_sweep, 180])  cf_rod(cf_rods[15]); // htail spar
+    rotate([0, -vtail_sweep - aoi, 180])  cf_rod(cf_rods[15]); // htail spar
+    
+    translate([-(htail_start + ch), 0, -fuse_z + (htail_start + ch)*tan(aoi)])
+    translate([0, -bh/2, 0]) rotate([0, - aoi, 90])  cf_rod(cf_rods[16]); // htail rear spar
 }
 
 module joints() {
