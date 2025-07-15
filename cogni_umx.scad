@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "assembly";
+part = "tail_print";
 
 do_echo = true;
 
@@ -576,28 +576,18 @@ module joint_T() {
 }
 
 module servo_arm(
-        Wb, Wt, L, thickness, segments,
-        hole_count, hole_diameter, hole_spacing, hole_base_offset,
-        base_cyl_diameter, base_cyl_length, base_cyl_hole_diameter)
-/* 
-Creates a servo arm with through holes and a base connection for a
-carbon fiber rod
-
-Wb : base width
-Wt : width at start of circular arc
-L  : overall lenght 
-thickness : Z‑extrusion depth
-segments : number of segments in tip arc (Changes shape of tip)
-
-hole_count : number of holes in arm
-hole_diameter : diameter of holes in arm
-hole_spacing : spacing between holes in arm
-hole_base_offset : offset of holes from the base of the arm
-
-base_cyl_diameter : diameter of the connector
-base_cyl_length : length of connector (length measured from top surface of the body, negative values inverse connector direction)
-base_cyl_hole_diameter : diameter of hole in connector
-*/
+        Wb = 6,
+        Wt = 4,
+        L = 20,
+        thickness = 2,
+        segments = 10,
+        hole_count = 3,
+        hole_diameter = 1,
+        hole_spacing = 3,
+        hole_base_offset = 12,
+        base_cyl_diameter = di_08mm + 2*wall,
+        base_cyl_length = h_joint,
+        base_cyl_hole_diameter = di_08mm)
 {
     // find height where arc begins by sampling
     steps = 200;
@@ -676,33 +666,10 @@ base_cyl_hole_diameter : diameter of hole in connector
                              center=true,$fn=30);
     }
 }
-/* 
-Creates a servo arm with through holes and a base connection for a
-carbon fiber rod
 
-Wb : base width
-Wt : width at start of circular arc
-L  : overall lenght 
-thickness : Z‑extrusion depth
-segments : number of segments in tip arc (Changes shape of tip)
-
-hole_count : number of holes in arm
-hole_diameter : diameter of holes in arm
-hole_spacing : spacing between holes in arm
-hole_base_offset : offset of holes from the base of the arm
-
-base_cyl_diameter : diameter of the connector
-base_cyl_length : length of connector (length measured from top surface of the body, negative values inverse connector direction)
-base_cyl_hole_diameter : diameter of hole in connector
-*/
-
-module servo() {
-    servo_arm(Wb=di_08mm + 2*wall, Wt = .8, L = 10, thickness = 2, segments = 10, hole_count = 3, hole_diameter = 0.5, hole_spacing = 3, hole_base_offset = 2, base_cyl_diameter = di_08mm + 2*wall, base_cyl_length = h_joint, base_cyl_hole_diameter = di_08mm); 
-    
-}
 
 //--------------------------------
-// Tail 
+// TAIL
 //--------------------------------
 
 module Tail() {
@@ -710,36 +677,43 @@ module Tail() {
     x2 = x1 - di_08mm/2;
     x3 = x2 - 1.5*di_08mm - wall/2;
     
+    // make sure to change cf_rods list to match these values
+    t_length = 65; // tail length (x) 
+    t_height = 100; // tail height (z)
+    t_width = 300; // tail width (y)
+    r_height = 86; // rudder height (z) (must be at least 14 less than overall height)
+    
     
     // vert tail
     translate([-x3, 0, 0]) rotate([0, 0, 0]) joint_gear_elevator();
-    translate([0, 0, 2*h_joint + 1]) rotate([90, 0, 0]) joint_T();
-    translate([0, 0, 50]) rotate([-90, 0, 0]) joint_right_ang();
-    translate([-35, 0, 50]) rotate([-90, 0, 180]) joint_right_ang();
-    translate([-35, 0, 2*h_joint + 1]) rotate([90, 0, 180]) joint_right_ang();
+    translate([0, 0, t_height - r_height]) rotate([90, 0, 0]) joint_T();
+    translate([0, 0, t_height]) rotate([-90, 0, 0]) joint_right_ang();
+    translate([-t_length, 0, t_height]) rotate([-90, 0, 180]) joint_right_ang();
+    translate([-t_length, 0, t_height - r_height]) rotate([90, 0, 180]) joint_right_ang();
     
-    translate([0,0,50]) rotate([0,90,0]) cf_rod(cf_rods[14]);
-    translate([-35,0,50]) rotate([0,90,0]) cf_rod(cf_rods[15]);
-    translate([-35,0,50]) rotate([0,0,0]) cf_rod(cf_rods[15]);
-    translate([-35,0,2*h_joint + 1]) rotate([180,0,0]) cf_rod(cf_rods[15]);
+    translate([0,0,t_height]) rotate([0,90,0]) cf_rod([t_height, 0.8]);
+    translate([-t_length,0,t_height]) rotate([0,90,0]) cf_rod([r_height, 0.8]);
+    translate([-t_length,0,t_height]) rotate([0,0,0]) cf_rod([t_length, 0.8]);
+    translate([-t_length,0,t_height - r_height]) rotate([180,0,0]) cf_rod([t_length, 0.8]);
     
-    translate([0,0,3*h_joint + 1.1]) rotate([180,180,0]) servo();
+    translate([0,0,t_height - r_height + h_joint]) rotate([180,180,0]) servo_arm();
     
     
     // horizontal tail
-    translate([-x2, 40, 0]) rotate([180, 0, 0]) joint_right_ang();
-    translate([-x2, -40, 0]) rotate([0, 0, 0]) joint_right_ang();
-    translate([-x2 - 35, 40, 0]) rotate([180, 180, 0]) joint_right_ang();
-    translate([-x2 - 35, -40, 0]) rotate([0, 0, 270]) joint_right_ang();
+    translate([-x2, t_width / 2, 0]) rotate([180, 0, 0]) joint_right_ang();
+    translate([-x2, -t_width / 2, 0]) rotate([0, 0, 0]) joint_right_ang();
+    translate([-x2 - t_length, t_width / 2, 0]) rotate([180, 180, 0]) joint_right_ang();
+    translate([-x2 - t_length, -t_width / 2, 0]) rotate([0, 0, 270]) joint_right_ang();
     
-    translate([-x2,-40,0]) rotate([0,0,90]) cf_rod(cf_rods[16]);
-    translate([-x2 - 35,-40,0]) rotate([0,0,90]) cf_rod(cf_rods[16]);
-    translate([-x2 - 35,-40,0]) rotate([0,0,0]) cf_rod(cf_rods[15]);
-    translate([-x2 - 35,40,0]) rotate([0,0,0]) cf_rod(cf_rods[15]);
+    translate([-x2,-t_width / 2,0]) rotate([0,0,90]) cf_rod([t_width, 0.8]);
+    translate([-x2 - t_length,-t_width / 2,0]) rotate([0,0,90]) cf_rod([t_width, 0.8]);
+    translate([-x2 - t_length,-t_width / 2,0]) rotate([0,0,0]) cf_rod([t_length, 0.8]);
+    translate([-x2 - t_length, t_width / 2,0]) rotate([0,0,0]) cf_rod([t_length, 0.8]);
     
-    translate([-x2, 5, 0]) rotate([270,180,0]) servo();
+    translate([-x2, 4, 0]) rotate([270,180,0]) servo_arm();
     
 }
+
 
 //--------------------------------
 // RODS
@@ -761,9 +735,12 @@ cf_rods = [
     [c_tip, 0.8], //11
     [c_tip, 0.8], //12
     [bh, 0.8], // 13
-    [50, 0.8], // 14
-    [35, 0.8], // 15
-    [80, 0.8], // 16
+    
+    // 14 through 17 all pertain to tail, make sure they match the parameters in the tail module
+    [100, 0.8], // 14 tail height (z)
+    [86, 0.8], // 15 rudder height (z) (must be at least 14 less than overall height)
+    [65, 0.8], // 16 tail length (x)
+    [300, 0.8], // 17 tail width (y)
 ];
 
 steel_rods = [
@@ -891,7 +868,23 @@ module rod_template() {
     }
 }
 
-
+//--------------------------------
+// Tail Joints Print Layout
+//--------------------------------
+module Tail_print() {
+    
+    x = di_08mm / 2 + wall;
+    
+    translate([15, 5, h_joint*1.8 / 2 - 1]) rotate([0, 270, 0]) joint_gear_elevator();
+    translate([15, 20, x]) rotate([0, 0, 0]) joint_T();
+    translate([15, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([32, 5, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([32, 20, x]) rotate([0, 0, 0]) joint_right_ang(); 
+    translate([32, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([45, 5, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([45, 20, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([45, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+}
 
 //--------------------------------
 // PART OUTPUT
@@ -928,8 +921,10 @@ if (part == "joint_wing_top_front") {
   joint_T(); 
 } else if (part == "rod_template") {
     rod_template();
-} else if (part == "Tail") {
+} else if (part == "tail") {
     rotate([0, 0, 0]) Tail();
+ } else if (part == "tail_print") {
+    rotate([0, 0, 0]) Tail_print();
 } else if (part == "assembly") {
     rotate([0, -aoi, 0]) assembly();
 } else {
