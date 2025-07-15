@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "tail_print";
+part = "assembly";
 
 do_echo = true;
 
