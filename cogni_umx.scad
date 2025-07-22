@@ -29,10 +29,10 @@ lv = lh; // vertical tail moment arm (similar to lh)
 aoi = 5; // angle of incidence with thrust axis
 
 ARh = 3; // trainer 2-4, sport 3-5
-ARv = 1.5;  // trainer 1-2, sport 1.5-2.5
+ARv = 1.1;  // trainer 1-2, sport 1.5-2.5
 
-Vh = 0.4; // horizontal tail volume coeff. (0.4-0.6 trainer), (0.3-0.5 sport)
-Vv = 0.03; // vertical tail volume coeff. (0.03 - 0.05 trainer), (0.02-0.035 sport)
+Vh = 0.3; // horizontal tail volume coeff. (0.4-0.6 trainer), (0.3-0.5 sport)
+Vv = 0.05; // vertical tail volume coeff. (0.03 - 0.05 trainer), (0.02-0.035 sport)
 
 max_elev_deflect = 20; // elevator deflection (deg)
 
@@ -40,8 +40,8 @@ max_elev_deflect = 20; // elevator deflection (deg)
 down_angle = 18.5;
 down_angle_rear = 12.4;
 theta_rear_fix = 0.18;
-rudder_ratio = 0.3; // ratio of rudder to vertical tail area, trainer (0.25-0.4), sport (0.3-0.5)
-elevator_ratio = 0.3; // ratio of elevator to horizontal tail area, trainer (0.25-0.4), sport (0.3-0.5)
+rudder_ratio = 0.5; // ratio of rudder to vertical tail area, trainer (0.25-0.4), sport (0.3-0.5)
+elevator_ratio = 0.49; // ratio of elevator to horizontal tail area, trainer (0.25-0.4), sport (0.3-0.5)
 
 fix = -lh - wall - .83 - di_08mm;
 
@@ -70,6 +70,7 @@ ce = Se / bh; // chord of elevator
 ch = 2 * Sh * (1 - elevator_ratio) / bh;  // root chord of horizontal tail (triangular)
 cr = Sr / hv; // rectangular elevator
 cv = 2 * Sv * (1 - rudder_ratio)/ hv;
+cr_tip = cr * hv / (hv - h_joint); // accounting for the triangluar shape at the bottom of the rudder
 
 
 assert((ch*bh/2 + ce*bh) == Sh, "horizontal tail area wrong");
@@ -595,7 +596,7 @@ module joint_back_rudder() {
 }
 
 module servo_arm(
-        Wb = 6,
+        Wb = di_08mm + 2*wall,
         Wt = 4,
         L = 20,
         thickness = 2,
@@ -669,6 +670,9 @@ module servo_arm(
                 translate([0,0,base_cyl_length/2 + thickness/2])
                     rotate([0,0,90])
                         cylinder(h=abs(base_cyl_length) + thickness,d=       base_cyl_diameter,center=true,$fn=60);
+            // webbing
+            translate([-0.25, 0, thickness]) rotate([90, 0, 90]) linear_extrude(0.5)
+                polygon([[0,0],[h_joint,0],[1,0.85*h_joint]]);
         }
 
         // vertical holes 
@@ -696,52 +700,31 @@ module Tail() {
     x2 = x1 - di_08mm/2;
     x3 = x2 - 1.5*di_08mm - wall/2;
     
-    // make sure to change cf_rods list to match these values
-    
-    // Sh = Vh*S*c / lh
-    // ARt = bt/ct
-    // Sh = bt * ct  
-    
-   
-    
-    
-    
-    S = AR * ((c_tip + c_root) / 2)^2;
-    Sh = Vh* S *((c_tip + c_root) / 2) / lh;
-    cht = sqrt(Sh / ARh);
-    bht = ARh * cht;
- 
-    Sv = Vv* S * AR * ((c_tip + c_root) / 2) / lv;
-    cvt = sqrt(Sv / ARv);
-    bvt = ARv * cvt;
-    cvt_tip = cvt * bvt / (bvt - 2*h_joint / 3); // accounting for the triangluar shape at the nottom of the rudder
-    
-    
     // vert tail
     translate([-x3, 0, 0]) rotate([0, 0, 0]) joint_gear_elevator();
     translate([0, 0, 2*h_joint]) rotate([90, 0, 0]) joint_front_rudder();
-    translate([0, 0, bvt]) rotate([-90, 0, 0]) joint_right_ang();
-    translate([-cvt_tip, 0, bvt]) rotate([-90, 0, 180]) joint_right_ang();
-    translate([-cvt_tip, 0, 2*h_joint + cvt_tip*tan(max_elev_deflect)]) rotate([90, 0, 180]) joint_back_rudder();
+    translate([0, 0, hv]) rotate([-90, 0, 0]) joint_right_ang();
+    translate([-cr_tip, 0, hv]) rotate([-90, 0, 180]) joint_right_ang();
+    translate([-cr_tip, 0, 2*h_joint + cr_tip*tan(max_elev_deflect)]) rotate([90, 0, 180]) joint_back_rudder();
     
-    translate([0,0,bvt]) rotate([0,90,0]) cf_rod([bvt, 0.8]);
-    translate([-cvt_tip,0,bvt]) rotate([0,90,0]) cf_rod([bvt - cvt_tip*tan(max_elev_deflect) - 14, 0.8]);
-    translate([-cvt_tip,0,bvt]) rotate([0,0,0]) cf_rod([cvt_tip, 0.8]);
-    translate([-cvt_tip,0,2*h_joint + cvt_tip*tan(max_elev_deflect)]) rotate([180,max_elev_deflect,0]) cf_rod([cvt_tip / cos(max_elev_deflect), 0.8]);
+    translate([0,0,hv]) rotate([0,90,0]) cf_rod([hv, 0.8]);
+    translate([-cr_tip,0,hv]) rotate([0,90,0]) cf_rod([hv - cr_tip*tan(max_elev_deflect) - 14, 0.8]);
+    translate([-cr_tip,0,hv]) rotate([0,0,0]) cf_rod([cr_tip, 0.8]);
+    translate([-cr_tip,0,2*h_joint + cr_tip*tan(max_elev_deflect)]) rotate([180,max_elev_deflect,0]) cf_rod([cr_tip / cos(max_elev_deflect), 0.8]);
     
     translate([0,0,3*h_joint]) rotate([180,180,0]) servo_arm();
     
     
     // horizontal tail
-    translate([-x2, bht / 2, 0]) rotate([180, 0, 0]) joint_right_ang();
-    translate([-x2, -bht / 2, 0]) rotate([0, 0, 0]) joint_right_ang();
-    translate([-x2 - cht, bht / 2, 0]) rotate([180, 180, 0]) joint_right_ang();
-    translate([-x2 - cht, -bht / 2, 0]) rotate([0, 0, 270]) joint_right_ang();
+    translate([-x2, bh / 2, 0]) rotate([180, 0, 0]) joint_right_ang();
+    translate([-x2, -bh / 2, 0]) rotate([0, 0, 0]) joint_right_ang();
+    translate([-x2 - ch, bh / 2, 0]) rotate([180, 180, 0]) joint_right_ang();
+    translate([-x2 - ch, -bh / 2, 0]) rotate([0, 0, 270]) joint_right_ang();
     
-    translate([-x2,-bht / 2,0]) rotate([0,0,90]) cf_rod([bht, 0.8]);
-    translate([-x2 - cht,-bht / 2,0]) rotate([0,0,90]) cf_rod([bht, 0.8]);
-    translate([-x2 - cht,-bht / 2,0]) rotate([0,0,0]) cf_rod([cht, 0.8]);
-    translate([-x2 - cht, bht / 2,0]) rotate([0,0,0]) cf_rod([cht, 0.8]);
+    translate([-x2,-bh / 2,0]) rotate([0,0,90]) cf_rod([bh, 0.8]);
+    translate([-x2 - ch,-bh / 2,0]) rotate([0,0,90]) cf_rod([bh, 0.8]);
+    translate([-x2 - ch,-bh / 2,0]) rotate([0,0,0]) cf_rod([ch, 0.8]);
+    translate([-x2 - ch, bh / 2,0]) rotate([0,0,0]) cf_rod([ch, 0.8]);
     
     translate([-x2, 4, 0]) rotate([270,180,0]) servo_arm();
     
@@ -767,13 +750,17 @@ cf_rods = [
     [c_root*(1 - lambda*0.5), 0.8], //10
     [c_tip, 0.8], //11
     [c_tip, 0.8], //12
-    [bh, 0.8], // 13
     
-    // 14 through 17 all pertain to tail, make sure they match the parameters in the tail module
-    [100, 0.8], // 14 tail height (z)
-    [86, 0.8], // 15 rudder height (z) (must be at least 14 less than overall height)
-    [65, 0.8], // 16 tail length (x)
-    [300, 0.8], // 17 tail width (y)
+    // Tail
+    [hv, 0.8], // 13
+    [hv - cr_tip*tan(max_elev_deflect) - 2*h_joint, 0.8], // 14
+    [cr_tip, 0.8], //15
+    [cr_tip / cos(max_elev_deflect) , 0.8], //16
+    [bh, 0.8], //17
+    [bh, 0.8], //18
+    [ch, 0.8], //19
+    [ch, 0.8], //20
+   
 ];
 
 steel_rods = [
@@ -956,8 +943,10 @@ if (part == "joint_wing_top_front") {
     rod_template();
 } else if (part == "tail") {
     rotate([0, 0, 0]) Tail();
- } else if (part == "tail_print") {
+} else if (part == "tail_print") {
     rotate([0, 0, 0]) Tail_print();
+} else if (part == "servo") {
+    rotate([0, 0, 0]) servo_arm();
 } else if (part == "assembly") {
     rotate([0, -aoi, 0]) assembly();
 } else {
