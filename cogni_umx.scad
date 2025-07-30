@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "assembly";
+part = "rod_template";
 
 do_echo = true;
 
@@ -29,12 +29,12 @@ lv = lh; // vertical tail moment arm (similar to lh)
 aoi = 5; // angle of incidence with thrust axis
 
 ARh = 3; // trainer 2-4, sport 3-5
-ARv = 1.1;  // trainer 1-2, sport 1.5-2.5
+ARv = 1;  // trainer 1-2, sport 1.5-2.5
 
 Vh = 0.3; // horizontal tail volume coeff. (0.4-0.6 trainer), (0.3-0.5 sport)
 Vv = 0.05; // vertical tail volume coeff. (0.03 - 0.05 trainer), (0.02-0.035 sport)
 
-max_elev_deflect = 20; // elevator deflection (deg)
+max_elev_deflect = 25; // elevator deflection (deg)
 
 // TODO: auto calculate these using geometry
 down_angle = 18.5;
@@ -70,7 +70,8 @@ ce = Se / bh; // chord of elevator
 ch = 2 * Sh * (1 - elevator_ratio) / bh;  // root chord of horizontal tail (triangular)
 cr = Sr / hv; // rectangular elevator
 cv = 2 * Sv * (1 - rudder_ratio)/ hv;
-cr_tip = cr * hv / (hv - h_joint); // accounting for the triangluar shape at the bottom of the rudder
+//cr_tip = cr; // * hv / (hv - cr_tip*tan(max_elev_deflect)/2); // accounting for the triangluar shape at the bottom of the rudder
+cr_tip = (-hv - sqrt(hv^2 - 2*hv*cr*tan(max_elev_deflect)) / -tan(max_elev_deflect));
 
 
 assert((ch*bh/2 + ce*bh) == Sh, "horizontal tail area wrong");
@@ -441,9 +442,6 @@ module joint_gear_elevator() {
             translate([0, 0.25, 1.5/2 + eps]) rotate([90, 0, 0]) linear_extrude(0.5)
                 polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
             
-            translate([0, -0.25, -1.5/2 - eps]) rotate([270, 0, 0]) linear_extrude(0.5)
-                polygon([[x3 + di_08mm/2 + wall,0],[h_joint,0],[x3 + di_08mm/2,h_joint*0.7]]);
-            
             translate([x2, 0, 0]) multi_joint_solid(
                 h=[h_joint/2, h_joint/2],
                 azim=[90, -90],
@@ -454,13 +452,13 @@ module joint_gear_elevator() {
                 rounded=[true, true]);
             
             translate([x3, 0, -delta- eps]) multi_joint_solid(
-                h=[h_joint, h_joint],
-                azim=[0, 0],
-                elev=[90, 270],
-                d=[di_08mm, di_08mm],
-                through=[true, false],
-                wall=[wall, wall],
-                rounded=[true, true]);
+                h=[h_joint],
+                azim=[0],
+                elev=[90],
+                d=[di_08mm],
+                through=[true],
+                wall=[wall],
+                rounded=[true]);
         }
         multi_joint_drill_holes(
             h=[h_joint],
@@ -595,6 +593,21 @@ module joint_back_rudder() {
         ]);
 }
 
+module joint_T() {
+    multi_joint(
+    h = [h_joint, h_joint, h_joint],
+    azim = [0, 90, 180],
+    elev = [0, 0, 0],
+    d = [di_08mm, di_08mm, di_08mm],
+    through = [true, false, false],
+    wall = [wall, wall, wall],
+    rounded = [true, true, true],
+    webbing = [
+            [1, 0, di_08mm/2, di_08mm/2 + wall, h_joint],
+            [2, 1, di_08mm/2, di_08mm/2 + wall, h_joint]
+    ]);
+}
+
 module servo_arm(
         Wb = di_08mm + 2*wall,
         Wt = 4,
@@ -700,22 +713,23 @@ module Tail() {
     x2 = x1 - di_08mm/2;
     x3 = x2 - 1.5*di_08mm - wall/2;
     
-    // vert tail
+    // rudder
     translate([-x3, 0, 0]) rotate([0, 0, 0]) joint_gear_elevator();
     translate([0, 0, 2*h_joint]) rotate([90, 0, 0]) joint_front_rudder();
-    translate([0, 0, hv]) rotate([-90, 0, 0]) joint_right_ang();
-    translate([-cr_tip, 0, hv]) rotate([-90, 0, 180]) joint_right_ang();
+    translate([0, 0, hv+2*h_joint]) rotate([-90, 0, 0]) joint_right_ang();
+    translate([-cr_tip, 0, hv+2*h_joint]) rotate([-90, 0, 180]) joint_right_ang();
     translate([-cr_tip, 0, 2*h_joint + cr_tip*tan(max_elev_deflect)]) rotate([90, 0, 180]) joint_back_rudder();
+    translate([0, 0, -1.3*h_joint]) rotate([90, 0, 90]) joint_T();
     
-    translate([0,0,hv]) rotate([0,90,0]) cf_rod([hv, 0.8]);
-    translate([-cr_tip,0,hv]) rotate([0,90,0]) cf_rod([hv - cr_tip*tan(max_elev_deflect) - 14, 0.8]);
-    translate([-cr_tip,0,hv]) rotate([0,0,0]) cf_rod([cr_tip, 0.8]);
+    translate([0,0,hv + 2*h_joint]) rotate([0,90,0]) cf_rod([hv + 3.3*h_joint, 0.8]);
+    translate([-cr_tip,0,hv + 2*h_joint]) rotate([0,90,0]) cf_rod([hv - cr_tip*tan(max_elev_deflect), 0.8]);
+    translate([-cr_tip,0,hv + 2*h_joint]) rotate([0,0,0]) cf_rod([cr_tip, 0.8]);
     translate([-cr_tip,0,2*h_joint + cr_tip*tan(max_elev_deflect)]) rotate([180,max_elev_deflect,0]) cf_rod([cr_tip / cos(max_elev_deflect), 0.8]);
     
     translate([0,0,3*h_joint]) rotate([180,180,0]) servo_arm();
     
     
-    // horizontal tail
+    // elevator
     translate([-x2, bh / 2, 0]) rotate([180, 0, 0]) joint_right_ang();
     translate([-x2, -bh / 2, 0]) rotate([0, 0, 0]) joint_right_ang();
     translate([-x2 - ch, bh / 2, 0]) rotate([180, 180, 0]) joint_right_ang();
@@ -752,8 +766,8 @@ cf_rods = [
     [c_tip, 0.8], //12
     
     // Tail
-    [hv, 0.8], // 13
-    [hv - cr_tip*tan(max_elev_deflect) - 2*h_joint, 0.8], // 14
+    [hv + 3.3*h_joint, 0.8], // 13
+    [hv - cr_tip*tan(max_elev_deflect), 0.8], // 14
     [cr_tip, 0.8], //15
     [cr_tip / cos(max_elev_deflect) , 0.8], //16
     [bh, 0.8], //17
@@ -850,8 +864,12 @@ module rod_template() {
     n = n_cf + n_cf_sq + n_steel;
     thick = 3;
     space = 10;
+    
     difference() {
+        union(){
         linear_extrude(thick) square([305, (n+1)*space]);
+        translate([-20, 0, 0]) linear_extrude(thick - 1) square([20, (n+1)*space]); //lip for sawing
+        }
         translate([180, -eps, -thick]) linear_extrude(3*thick) square([150, 110]);
         translate([150, -80, -thick]) linear_extrude(3*thick) rotate([0, 0, 45]) square([155, 113]);
         translate([5, n*space + 3, thick + eps - 1])
@@ -865,7 +883,7 @@ module rod_template() {
             translate([5, space*(i) + 3, thick + eps - 1])
                 linear_extrude(1) text(label, size=5);
         }
-        cf_rods_odered = [5, 6, 11, 12, 9, 10, 7, 8, 0, 3, 4, 1, 2];
+        cf_rods_odered = [5, 15, 6, 16, 20, 19, 14, 11, 12, 13, 9, 10, 7, 8, 0, 17, 18, 3, 4, 1, 2, 19, 20];
         for (i = [0:n_cf-1]) {
             j = cf_rods_odered[i];
             rod = cf_rods[j];
@@ -889,21 +907,40 @@ module rod_template() {
 }
 
 //--------------------------------
-// Tail Joints Print Layout
+// Parts Print Layout
 //--------------------------------
-module Tail_print() {
+module parts_print() {
     
     x = di_08mm / 2 + wall;
     
-    translate([15, 5, h_joint*1.8 / 2 - 1]) rotate([0, 270, 0]) joint_gear_elevator();
+    translate([15, 5, 1.5]) rotate([0, 0, 0]) joint_gear_elevator();
     translate([15, 20, x]) rotate([0, 0, 0]) joint_T();
     translate([15, 35, x]) rotate([0, 0, 0]) joint_right_ang();
-    translate([32, 5, x]) rotate([0, 0, 0]) joint_right_ang();
-    translate([32, 20, x]) rotate([0, 0, 0]) joint_right_ang(); 
-    translate([32, 35, x]) rotate([0, 0, 0]) joint_right_ang();
-    translate([45, 5, x]) rotate([0, 0, 0]) joint_right_ang();
-    translate([45, 20, x]) rotate([0, 0, 0]) joint_right_ang();
-    translate([45, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([15, 55, x]) rotate([0, 0, 0]) joint_back_rudder();
+    translate([15, 70, x]) rotate([180, 0, 0]) joint_wing_top_rear_left();
+    translate([35, 5, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([35, 20, x]) rotate([0, 0, 0]) joint_right_ang(); 
+    translate([35, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([35, 55, x]) rotate([0, 270, 0]) joint_wing_top_front();
+    translate([35, 75, x]) rotate([180, 0, 0]) joint_wing_top_rear_right();
+    translate([55, 5, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([55, 20, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([55, 35, x]) rotate([0, 0, 0]) joint_right_ang();
+    translate([55, 55, x]) rotate([0, 270, 0]) joint_wing_top_rear();
+    translate([55, 70, x]) rotate([180, 0, 0]) joint_wing_top_rear_left_tip();
+    translate([75, 5, x]) rotate([180, 0, 0]) joint_wing_top_front_left();
+    translate([75, 25, x]) rotate([180, 0, 0]) joint_wing_top_front_right();
+    translate([75, 35, x]) rotate([180, 0, 0]) joint_wing_top_front_left_tip();
+    translate([75, 55, x]) rotate([180, 0, 0]) joint_wing_top_front_right_tip();
+    translate([75, 70, x]) rotate([180, 0, 180]) joint_wing_top_rear_right_tip();
+    translate([95, 10, x+wall]) rotate([0, 270, 0]) joint_wing_bottom_front();
+    translate([95, 20, x]) rotate([0, 270, 270]) joint_wing_bottom_rear();
+    translate([95, 35, 0]) rotate([0, 0, 270]) servo_arm();
+    translate([95, 50, 0]) rotate([0, 0, 270]) servo_arm();
+    translate([95, 50, 0]) rotate([0, 0, 270]) servo_arm();
+    translate([25, 110, 0.5]) rotate([270, 0, 0]) wheel(d = 30);
+    translate([75, 110, 0.5]) rotate([270, 0, 0]) wheel(d = 40);
+    translate([125, 110, 0.5]) rotate([270, 0, 0]) wheel(d = 40);     
 }
 
 //--------------------------------
@@ -937,14 +974,12 @@ if (part == "joint_wing_top_front") {
     joint_gear_elevator();
 } else if (part == "joint_right_ang") {
   joint_right_ang();  
-} else if (part == "joint_T") {
-  joint_T(); 
 } else if (part == "rod_template") {
     rod_template();
 } else if (part == "tail") {
     rotate([0, 0, 0]) Tail();
-} else if (part == "tail_print") {
-    rotate([0, 0, 0]) Tail_print();
+} else if (part == "parts_print") {
+    rotate([0, 0, 0]) parts_print();
 } else if (part == "servo") {
     rotate([0, 0, 0]) servo_arm();
 } else if (part == "assembly") {
