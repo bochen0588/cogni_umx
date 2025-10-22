@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "mid";
+part = "airfoil joints";
 
 do_echo = true;
 
@@ -130,27 +130,12 @@ module airfoil_profile(chord) {
 // AIRFOIL RIB MODULE
 //--------------------------------
 module airfoil_rib(span_pos = 0, thickness = wall, c_length) {
-    difference() {
-        linear_extrude(thickness)
-            offset(delta = -wall / 2)
-                airfoil_profile(c_length);
-
-        // Elliptical lightening holes
-        for (i = [-1, 0, 1]) {
-            translate([i * 0.3 * c_root, 0, thickness / 2])
-                scale([1, 0.5, 1])
-                    rotate([0, 0, 90])
-                        linear_extrude(height = thickness * 2)
-                            offset(delta = 0)
-                                polygon(points = [
-                                    [c_root / 10, 0],
-                                    [0, c_root / 40],
-                                    [-c_root / 10, 0],
-                                    [0, -c_root / 40]
-                                ]);
-        }
-    }
+    // Solid airfoil rib (no diamond or lightening holes)
+    translate([0,0,-thickness*0.75]) linear_extrude(thickness*1.5)
+        offset(delta = -wall / 2)
+            airfoil_profile(c_length);
 }
+
 
 
 //--------------------------------
