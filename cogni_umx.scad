@@ -131,9 +131,12 @@ module airfoil_profile(chord) {
 //--------------------------------
 module airfoil_rib(span_pos = 0, thickness = wall, c_length) {
     // Solid airfoil rib (no diamond or lightening holes)
-    translate([0,0,-thickness*0.75]) linear_extrude(thickness*1.5)
-        offset(delta = -wall / 2)
-            airfoil_profile(c_length);
+    translate([0,0,-thickness/0.8]) linear_extrude(thickness*2.5)
+		difference(){
+			airfoil_profile(c_length);
+			offset(delta = -2)
+				airfoil_profile(c_length);
+			}
 }
 
 
