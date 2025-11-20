@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "airfoil joints";
+part = "assembly";
 
 do_echo = true;
 
@@ -929,12 +929,75 @@ module joints() {
     
  
 }
+module eyelet(
+    di = di_08mm,              // joint hole diameter (same as all other joints)
+    wall = wall,               // same wall variable your code uses
+    rod_clearance = 0.25,      // friction-fit tolerance
+    h = h_joint,               // height matches other joints
+    offset_extra = 1.0         // additional distance to prevent intrusion
+) {
+
+    // Vertical rod hole is same diameter as di_08mm
+    rod_d = di;
+
+    // Cylinder sizes
+    vertical_outer = rod_d + 2*wall;
+    side_outer = rod_d + 2*wall;
+
+    // Compute offset needed to avoid intrusion
+    // Ensures horizontal cylinders do not cut into vertical hole.
+    offset = (vertical_outer/6) + (side_outer/6) + offset_extra;
+
+    difference() {
+        union() {
+
+            // -------------------------------
+            // Main vertical friction-fit tube
+            // -------------------------------
+            cylinder(h = h, d = vertical_outer, center = true);
+
+            // -------------------------------
+            // FRONT horizontal cylinder
+            // -------------------------------
+            translate([0, offset, 0])
+                rotate([0,90,0])    // horizontal (X-axis)
+                    cylinder(h = side_outer*1.2, d = side_outer, center = true);
+
+            // -------------------------------
+            // BACK horizontal cylinder
+            // -------------------------------
+            translate([0, -offset, 0])
+                rotate([0,90,0])    // horizontal (X-axis)
+                    cylinder(h = side_outer*1.2, d = side_outer, center = true);
+        }
+
+        // -------------------------------
+        // Drill vertical rod hole
+        // -------------------------------
+        cylinder(h = h+1, d = di, center = true);
+
+        // -------------------------------
+        // Drill horizontal holes (same diameter!)
+        // -------------------------------
+        translate([0, offset, 0])
+            rotate([0,90,0])
+                cylinder(h = side_outer*1.4, d = di, center = true);
+
+        translate([0, -offset, 0])
+            rotate([0,90,0])
+                cylinder(h = side_outer*1.4, d = di, center = true);
+    }
+}
+
+
 
 module assembly() {
     rods();
     joints();
+    translate([-169, 0, -24.5]) rotate([0, 0, 0]) eyelet();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
+
 
 module rod_template() {
     // this module creates a printable rod template and also echos rod lengths
@@ -1070,12 +1133,15 @@ if (part == "joint_wing_top_front") {
 	translate([0,-50,0]) rotate([180,180,0]) joint_wing_top_front_left();
 	translate([0,100,0]) rotate([180,180,0]) joint_wing_top_front_right_tip();
 	translate([0,-100,0]) rotate([180,180,0]) joint_wing_top_front_left_tip();
-	
+   
 	
 	
 } else if (part == "mid"){
 	joint_wing_top_front();
-
+} else if (part == "eyelet"){
+      eyelet();
+      
+      
 } else {
     assert(false, str("unkonwn part: ", part));
 }
