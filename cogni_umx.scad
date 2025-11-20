@@ -930,11 +930,12 @@ module joints() {
  
 }
 module eyelet(
-    di = di_08mm,              // joint hole diameter (same as all other joints)
-    wall = wall,               // same wall variable your code uses
+                 
+    wall = wall,
+    di = di_08mm +.2,
     rod_clearance = 0.25,      // friction-fit tolerance
     h = h_joint,               // height matches other joints
-    offset_extra = 1.0         // additional distance to prevent intrusion
+    offset_extra = 1.0         // additional distance prevents intrusion of horizontal rod holes into vertical hole
 ) {
 
     // Vertical rod hole is same diameter as di_08mm
@@ -994,7 +995,7 @@ module eyelet(
 module assembly() {
     rods();
     joints();
-    translate([-169, 0, -24.5]) rotate([0, 0, 0]) eyelet();
+    translate([-168.8, 0, -24.5]) rotate([0, 0, 0]) eyelet();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
 
