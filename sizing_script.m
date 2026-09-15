@@ -47,6 +47,6 @@ tw_climb
 
 tw_turn
 
-tw_accel
+tw_takeoff
 
 % Plotting constraint diagram
