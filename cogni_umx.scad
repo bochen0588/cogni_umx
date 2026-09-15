@@ -4,7 +4,7 @@
 //--------------------------------
 $fn=16;
 
-part = "assembly";
+part = "airfoils";
 
 do_echo = true;
 
@@ -76,6 +76,14 @@ cr_tip = (-hv - sqrt(hv^2 - 2*hv*cr*tan(max_elev_deflect)) / -tan(max_elev_defle
 
 assert((ch*bh/2 + ce*bh) == Sh, "horizontal tail area wrong");
 
+	back_top_main_wing = sqrt((bp/2)^2 + (c_root - c_tip)^2);
+	front_top_main_wing = bp/2;
+	back_middle_main_wing = fuse_z- c_root*tan(aoi);
+	front_middle_main_wing = fuse_z;
+	front_main_wing_support = 157;
+	back_main_wing_support = 157;
+	
+
 if (do_echo) {
     echo(title);
     echo("wing area", S*1e-4, "dm^2");
@@ -84,9 +92,15 @@ if (do_echo) {
     echo("chord tip", c_tip, "mm");
     echo("tail arm ratio", lh / cbar);
     echo("horizontal tail area", Sh*1e-4, "dm^2");
-    echo("chord horz tail", ch, "mm");
+    echo("chord h orz tail", ch, "mm");
     echo("check horz tail area", (ch*bh/2 + ce*bh)*1e-4, "dm^2");
     echo("chord vert tail", cv, "mm");
+	echo("front top main wing", front_top_main_wing, "mm");
+	echo("back top main wing", back_top_main_wing, "mm");
+	echo("front middle main wing", front_middle_main_wing, "mm");
+	echo("back middle main wing", back_middle_main_wing, "mm");
+	echo("front main wing support", front_main_wing_support, "mm");
+	echo("back main wing support", back_main_wing_support, "mm");
 }
 
 //--------------------------------
@@ -830,6 +844,9 @@ module Tail() {
 // RODS
 //--------------------------------
 
+
+	
+
 cf_rods = [
     // length, diameter (mm)
     [c_root, 0.8], // 0
@@ -871,12 +888,12 @@ cf_square_rods = [
 
 
 module rods() {
-    translate([-c_root, 0, 0]) rotate([0, -theta + theta_rear_fix, 90-alpha]) cf_rod(cf_rods[1]);
-    translate([-c_root, 0, 0]) rotate([0, -theta + theta_rear_fix, -90+alpha]) cf_rod(cf_rods[2]);
-    translate([0, 0, 0]) rotate([0, -theta, 90]) cf_rod(cf_rods[3]);
-    translate([0, 0, 0]) rotate([0, -theta, -90]) cf_rod(cf_rods[4]);
-    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -90, 0]) cf_rod(cf_rods[5]);
-    translate([0, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[6]);
+    translate([-c_root, 0, 0]) rotate([0, -theta + theta_rear_fix, 90-alpha]) cf_rod(cf_rods[1]);//Left back wing
+    translate([-c_root, 0, 0]) rotate([0, -theta + theta_rear_fix, -90+alpha]) cf_rod(cf_rods[2]);//Right back wing
+    translate([0, 0, 0]) rotate([0, -theta, 90]) cf_rod(cf_rods[3]);//Left Front wing
+    translate([0, 0, 0]) rotate([0, -theta, -90]) cf_rod(cf_rods[4]);//Right front wing
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -90, 0]) cf_rod(cf_rods[5]);//Back middle wing
+    translate([0, 0, -fuse_z]) rotate([0, -90, 0]) cf_rod(cf_rods[6]);//Front middle Wing
 
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, 90])  steel_rod(steel_rods[0]);
     translate([0,  0, -fuse_z]) rotate([0, lg_theta, -90])  steel_rod(steel_rods[1]);
@@ -888,11 +905,11 @@ module rods() {
   
     translate([-lh, 0, -fuse_z]) wheel(d=30);
 
-    translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, 90]) cf_rod(cf_rods[7]);
-    translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, -90]) cf_rod(cf_rods[8]);
+    translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, 90]) cf_rod(cf_rods[7]);//Left Front Support Wing
+    translate([0, 0, -fuse_z]) rotate([0, -theta -down_angle, -90]) cf_rod(cf_rods[8]);//Right Front Support Wing
 
-    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, 90-alpha]) cf_rod(cf_rods[7]);
-    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, -90+alpha]) cf_rod(cf_rods[8]);
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, 90-alpha]) cf_rod(cf_rods[7]);//Left Back Support Wing
+    translate([-c_root, 0, -fuse_z + c_root*tan(aoi)]) rotate([0, -theta -down_angle_rear, -90+alpha]) cf_rod(cf_rods[8]);//Right Back Support Wing
  
     rotate([theta, 0, 180]) translate([0, bp/4, 0]) cf_rod(cf_rods[9]);
     rotate([-theta, 0, 180]) translate([0, -bp/4, 0]) cf_rod(cf_rods[10]);
@@ -928,6 +945,31 @@ module joints() {
     
     
  
+}
+module connector() {
+	difference() {
+        union() {
+            translate([1, 0, 0]) cube([h_joint*2.5, 3, 3], true);
+            multi_joint_solid(
+                h=[h_joint],
+                azim=[0],
+                elev=[0],
+                d=[[1.6, 1.6]],
+                through=[true],
+                wall=[wall],
+                rounded=[false]);
+        }
+        multi_joint_drill_holes(
+            h=[h_joint],
+            azim=[0],
+            elev=[0],
+            d=[[1.5, 1.5]],
+            through=[true],
+            wall=[wall],
+            rounded=[false]);
+        
+        
+    }
 }
 module eyelet(
                  
@@ -1128,21 +1170,22 @@ if (part == "joint_wing_top_front") {
     rotate([0, 0, 0]) servo_arm();
 } else if (part == "assembly") {
     rotate([0, -aoi, 0]) assembly();
-} else if (part == "airfoil joints") {
+} else if (part == "airfoils") {
 	joint_wing_top_front();
 	translate([0,50,0]) rotate([180,180,0]) joint_wing_top_front_right();
 	translate([0,-50,0]) rotate([180,180,0]) joint_wing_top_front_left();
 	translate([0,100,0]) rotate([180,180,0]) joint_wing_top_front_right_tip();
 	translate([0,-100,0]) rotate([180,180,0]) joint_wing_top_front_left_tip();
-   
-	
-	
+}else if(part == "front joint") {
+	rotate([0, 270, 0]) joint_wing_bottom_front();	
 } else if (part == "mid"){
 	joint_wing_top_front();
 } else if (part == "eyelet"){
       eyelet();
-      
-      
+} else if (part == "connector") {
+	connector();
+}else if (part == "airfoil left"){
+	translate([0,-50,0]) rotate([180,180,0]) joint_wing_top_front_left();
 } else {
     assert(false, str("unkonwn part: ", part));
 }
