@@ -12,19 +12,23 @@ g = 9.81;               % Gravity (m/s^2)
 % Aerodynamic Parameters
 CD0 = 0.03;             % Zero-lift drag coefficient
 e = 0.8;                % Oswald efficiency factor
-AR = 8.0;               % Aspect ratio
+AR = 4.52;               % Aspect ratio
 CL_max = 1.3;           % Maximum lift coefficient (flaps down if applicable)
 
+% Aircraft Parameters
+m = 0.05;               % total mass of drone
+S = 7.246E-2;           % wing area m^2
+
 % Performance Requirements (Drone Scale)
-V_stall = 12;           % Maximum allowable stall speed (m/s)
-V_max = 30;             % Target maximum cruise speed (m/s)
-ROC = 6;                % Desired rate of climb (m/s)
-V_climb = 15;           % Forward speed during climb (m/s)
-S_TO = 15;              % Maximum allowable takeoff distance (m)
+V_stall = 2;           % Maximum allowable stall speed (m/s)
+V_max = 6;             % Target maximum cruise speed (m/s)
+ROC = 1;                % Desired rate of climb (m/s)
+V_climb = 3;           % Forward speed during climb (m/s)
+S_TO = 3;              % Maximum allowable takeoff distance (m)
 
 %% 2. Wing Loading (W/S) Array
 % Define the domain for Wing Loading (N/m^2)
-WS = linspace(10, 150, 300); % W/S from 10 to 150 N/m^2
+WS = linspace(0, 20, 300); % W/S from 0 to 20 N/m^2
 
 %% 3. Constraint Equations
 
@@ -74,10 +78,9 @@ p3 = plot(WS, TW_takeoff, 'k-.', 'LineWidth', 2);
 p4 = xline(WS_max_stall, 'm-', 'LineWidth', 2);
 
 % Formatting the plot
-axis([10 150 0 TW_plot_ceiling]);
 xlabel('Wing Loading, W/S (N/m^2)', 'FontSize', 12, 'FontWeight', 'bold');
 ylabel('Thrust-to-Weight Ratio, T/W', 'FontSize', 12, 'FontWeight', 'bold');
-title('Design Space Constraint Diagram for Small Drone', 'FontSize', 14);
+title('Constraint Diagram for Drone', 'FontSize', 14);
 
 % Add optimal design point marker (lowest T/W and highest W/S in feasible space)
 opt_WS = WS_max_stall;
@@ -90,7 +93,7 @@ legend([p1, p2, p3, p4], ...
     sprintf('Rate of Climb (ROC = %d m/s)', ROC), ...
     sprintf('Takeoff Distance (S_{TO} = %d m)', S_TO), ...
     sprintf('Stall Speed Limit (V_{stall} = %d m/s)', V_stall), ...
-    'Location', 'northwest', 'FontSize', 11);
+    'Location', 'northeast', 'FontSize', 11);
 
 % Add text for Design Point
 text(opt_WS - 5, opt_TW + 0.05, 'Optimal Design Point', ...
