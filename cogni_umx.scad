@@ -1,10 +1,14 @@
+//--------------------------------
+// IMPORTS
+//--------------------------------
+include <BOSL2/std.scad>
 
 //--------------------------------
 // PARAMETERS
 //--------------------------------
 $fn=16;
 
-part = "airfoils";
+part = "assembly";
 
 do_echo = true;
 
@@ -17,8 +21,8 @@ eps = 0.01; // small number below printing tolerance
 fuse_z = 50;  // fuselage height
 theta = 6; // dihedral angle, deg (per wing, total is *2)
 lambda = 0.5; // taper ratio
-wing_loading = 3.45; // g/dm^2
-m = 25; // flying mass, g,  with additional mocap payload
+wing_loading = 3.06; // g/dm^2
+m = 34.2; // flying mass, g,  with additional mocap payload
 AR = 4.52; // aspect ratio, fune tuning to make longest arm be 300 mm
 h_joint = 7; // joint length
 wall = 0.6; // wall thickness
@@ -319,47 +323,24 @@ module joint_wing_top_front() {
 		rotate([90,0, 0])
 			airfoil_rib(0, wall, c_root);
 	//translate([b / 4, 0, 0]) airfoil_rib(1);
-	module rear_thing(){
-		module solid() {
-			multi_joint_solid(
-				h=[h_joint, h_joint, h_joint, h_joint],
-				azim=[90 - alpha, -90 + alpha, 0, 0],
-				elev=[theta, theta, -90, 0],
-				d=[di_08mm, di_08mm, di_08mm, di_08mm],
-				through=[false, false, false, false],
-				wall=[wall, wall, wall*1.2, wall],
-				rounded=[true, true, true, true],
-				webbing=[
-				[0, 2, di_08mm/2, di_08mm/2 + 10*wall, h_joint],
-				[0, 3, -wall/2, wall/2, h_joint],
-				[3, 1, -wall/2, wall/2, h_joint],
-				[3, 2, -wall/2, wall/2, h_joint],
-				[2, 1, di_08mm/2, di_08mm/2 + 10*wall, h_joint]
-				]);
-		}
-		module holes() {
-			multi_joint_drill_holes(
-				h=[h_joint, h_joint, h_joint, h_joint],
-				azim=[90 - alpha, -90 + alpha, 0, 0],
-				elev=[theta, theta, -90, 0],
-				d=[di_08mm, di_08mm, di_08mm, di_08mm],
-				through=[false, false, false, false],
-				wall=[wall, wall, wall, wall],
-				rounded=[true, true, true, true]
-			);
-		}
-		delta = di_08mm/2 + wall;
-		difference() {
-			solid();
-			holes();
-			translate([-100/2-delta, 0, 0]) cube([100, 100, 100], center=true);
-		}
-	}
-	translate([c_root, 0, 0]) rotate([180, 180, 0]) rear_thing();
 }
 
-module joint_wing_top_rear() {
-    
+module joint_wing_top_rear() {      
+    multi_joint(
+        h=[h_joint, h_joint, h_joint, h_joint],
+		azim=[90 - alpha, -90 + alpha, 0, 0],
+		elev=[theta, theta, -90, 0],
+		d=[di_08mm, di_08mm, di_08mm, di_08mm],
+		through=[false, false, false, false],
+		wall=[wall, wall, wall*1.2, wall],
+		rounded=[true, true, true, true],
+		webbing=[
+		[0, 2, di_08mm/2, di_08mm/2 + wall, h_joint],
+		[0, 3, -wall/2, wall/2, h_joint],
+		[3, 1, -wall/2, wall/2, h_joint],
+		[3, 2, -wall/2, wall/2, h_joint],
+		[2, 1, di_08mm/2, di_08mm/2 + wall, h_joint]
+		]);
 }
 
 module joint_wing_bottom_front() {
@@ -384,41 +365,22 @@ module joint_wing_bottom_front() {
 }
 
 module joint_wing_bottom_rear() {
-    module solid() {
-        multi_joint_solid(
-                h=[h_joint, h_joint, h_joint, h_joint],
-            azim=[90 - alpha, -90 + alpha, 0, 0],
-            elev=[19, 19, 90, -aoi],
-            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
-            through=[false, false, false, true],
-            wall=[wall, wall, 1.2*wall, wall],
-            rounded=[true, true, true, false],
-            webbing=[
-                [2, 0, di_08mm/2, di_08mm/2 + wall*10, h_joint],
-                [0, 3, -wall/2, wall/2, h_joint],
-                [3, 1, -wall/2, wall/2, h_joint],
-                [3, 2, -wall/2, wall/2, h_joint],
-                [1, 2, di_08mm/2, di_08mm/2 + wall*10, h_joint],
-            ]
-        );
-    }
-    module holes() {
-        multi_joint_drill_holes(
-                h=[h_joint, h_joint, h_joint, h_joint],
-            azim=[90 - alpha, -90 + alpha, 0, 0],
-            elev=[19, 19, 90, -aoi],
-            d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
-            through=[false, false, false, true],
-            wall=[wall, wall, wall, wall],
-            rounded=[true, true, true, false]
-        );
-    }
-    delta = di_08mm/2 + wall;
-    difference() {
-        solid();
-        holes();
-        translate([-100/2-delta, 0, 0]) cube([100, 100, 100], center=true);
-    }
+    multi_joint_solid(
+        h=[h_joint, h_joint, h_joint, h_joint],
+        azim=[90 - alpha, -90 + alpha, 0, 0],
+        elev=[19, 19, 90, -aoi],
+        d=[di_08mm, di_08mm, di_08mm, [1.5, 1.5]],
+        through=[false, false, false, true],
+        wall=[wall, wall, 1.2*wall, wall],
+        rounded=[true, true, true, false],
+        webbing=[
+            [2, 0, di_08mm/2, di_08mm/2 + wall, h_joint],
+            [0, 3, -wall/2, wall/2, h_joint],
+            [3, 1, -wall/2, wall/2, h_joint],
+            [3, 2, -wall/2, wall/2, h_joint],
+            [1, 2, di_08mm/2, di_08mm/2 + wall, h_joint],
+        ]
+    );
 }
 
 module joint_wing_top_front_right() {
@@ -502,7 +464,7 @@ module joint_wing_top_front_right_tip() {
 		]);
 	}
 	x = di_08mm / 2 + wall;
-	translate([-84.8, 0, x-1]) rotate([180, 0, 105]) tip_stuff();
+	translate([-c_tip, 0, x-1]) rotate([180, 0, 105]) tip_stuff();
 }
 
 module joint_wing_top_front_left_tip() {
@@ -935,7 +897,9 @@ module joints() {
     rotate([-theta, 0, 0]) translate([-c_tip, -bp/2, 0]) joint_wing_top_rear_right_tip();
 
     translate([0, 0, 0]) rotate([0, 0, 180]) joint_wing_top_front();
-    
+    translate([-c_root, 0, 0]) joint_wing_top_rear();
+
+    translate([-c_root, 0, -fuse_z + 2*c_root*tan(aoi)]) rotate([0, 0, 0]) eyelet();
     
     x1 = -wall - 1.5/2;
     x2 = x1 - di_08mm/2;
@@ -972,7 +936,6 @@ module connector() {
     }
 }
 module eyelet(
-                 
     wall = wall,
     di = di_08mm +.2,
     rod_clearance = 0.25,      // friction-fit tolerance
@@ -1037,7 +1000,6 @@ module eyelet(
 module assembly() {
     rods();
     joints();
-    translate([-168.8, 0, -24.5]) rotate([0, 0, 0]) eyelet();
     //airfoil_elliptical(chord=c_root, camber=0.08, resolution=30);
 }
 
@@ -1176,7 +1138,7 @@ if (part == "joint_wing_top_front") {
 	translate([0,-50,0]) rotate([180,180,0]) joint_wing_top_front_left();
 	translate([0,100,0]) rotate([180,180,0]) joint_wing_top_front_right_tip();
 	translate([0,-100,0]) rotate([180,180,0]) joint_wing_top_front_left_tip();
-}else if(part == "front joint") {
+} else if(part == "front joint") {
 	rotate([0, 270, 0]) joint_wing_bottom_front();	
 } else if (part == "mid"){
 	joint_wing_top_front();
@@ -1184,8 +1146,10 @@ if (part == "joint_wing_top_front") {
       eyelet();
 } else if (part == "connector") {
 	connector();
-}else if (part == "airfoil left"){
+} else if (part == "airfoil left"){
 	translate([0,-50,0]) rotate([180,180,0]) joint_wing_top_front_left();
+} else if (part == "wing_mold") {
+	connector();
 } else {
     assert(false, str("unkonwn part: ", part));
 }

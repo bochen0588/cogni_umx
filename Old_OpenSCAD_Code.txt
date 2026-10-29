@@ -1,0 +1,5 @@
+wing_loading = 3.45; // g/dm^2
+m = 25; // flying mass, g,  with additional mocap payload
+
+//////////////////////////////
+
