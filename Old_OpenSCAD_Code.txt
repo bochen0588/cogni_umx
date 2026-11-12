@@ -3,3 +3,30 @@ m = 25; // flying mass, g,  with additional mocap payload
 
 //////////////////////////////
 
+module airfoil(chord, width) {
+    resolution = 30;
+    camber = 0.08;
+    polygon([ for (i = [-resolution : resolution - 1])
+        let (
+            x = chord * abs(i) / resolution,
+            xc = 2 * x / chord - 1,
+            y = camber * chord * sqrt(max(0, 1 - xc * xc))
+        ) [x - chord, if (i > 0)  y else y - eps]
+    ]);
+}
+
+module airfoil_elliptical(chord, span, lambda, width, thickness) {
+    translate([0, 0, 2]) difference() {
+        rotate([90-theta, 0, 0])
+        minkowski() {
+            linear_extrude(width/cos(theta), scale=1 - lambda*width/(span/2))
+                projection(false) rotate([theta, 0, 0])
+                linear_extrude(eps) airfoil(chord);
+            cube(size=thickness, center=true);
+        }
+        translate([-chord, 0, 0]) cube([2*chord, 2*chord, 2*chord]);
+        translate([-chord, -width*cos(theta)-2*chord, 0]) cube([2*chord, 2*chord, 2*chord]);
+    }
+}
+
+//////////////////////////////////////
